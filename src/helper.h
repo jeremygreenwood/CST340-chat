@@ -20,12 +20,15 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>             	/* for ssize_t data type  	*/
 #include <sys/socket.h>
 #include <errno.h>
 
 #define LISTENQ        	( 1024 )	/* backlog for listen()   	*/
+
+#define MAX_LINE      	( 1024 )	/* maximum string length	*/
 #define CONN_ERR		( -1 )		/* connection error			*/
 
 
@@ -33,7 +36,7 @@
 
 ssize_t Readline( int fd, void *vptr, size_t maxlen );
 ssize_t Writeline( int fc, const void *vptr, size_t maxlen );
-ssize_t write_client( int sock_fd, char *msg );
+ssize_t write_client( int sock_fd, char *msg, ... );
 void server_error( char *msg );
 void set_sock_reuse( int sock_fd );
 

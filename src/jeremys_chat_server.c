@@ -6,8 +6,6 @@
  Description : simple multi-threaded server with menu for various functions.
 ===========================================================================*/
 
-// FIXME currently server crashes when client severs socket
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,7 +21,6 @@
 // constants
 #define MAX_CONN			( 3 )
 #define ECHO_PORT      		( 3456 )
-#define MAX_LINE           	( 1024 )
 #define TRUE				( 1 )
 #define FALSE				( 0 )
 
@@ -62,7 +59,6 @@ int main( int argc, char *argv[] )
     int       	conn_s;                	/* connection socket        */
     short int 	port;                  	/* port number              */
     struct    	sockaddr_in servaddr;  	/* socket address structure */
-    char      	buffer[ MAX_LINE ];    	/* character buffer         */
     char	   *endptr;                	/* for strtol()             */
 
     memset( &g_worker, 0, sizeof( g_worker ) );
@@ -149,52 +145,43 @@ client_status_type process_client_data( int sock, char *buffer )
 	switch( buffer[0] )
 	{
 	case '1':
-		strcpy( ret_buf, "getting server info...\n" );
-		Writeline( sock, ret_buf, strlen( ret_buf ) );
+		write_client( sock, "getting server info...\n" );
 
 		fp = popen( "uname -a", "r" );
 
 		while( fgets( ret_buf, sizeof( ret_buf ), fp ) )
-		{
 			Writeline( sock, ret_buf, strlen( ret_buf ) );
-		}
 
 		pclose(fp);
 
 		return srv_cont;
 
 	case '2':
-		strcpy( ret_buf, "opening cdrom drive...\n" );
-		Writeline( sock, ret_buf, strlen( ret_buf ) );
+		write_client( sock, "opening cdrom drive...\n" );
 
 		system( "eject" );
 
 		return srv_cont;
 
 	case '3':
-		strcpy( ret_buf, "listing info for connected drives...\n" );
-		Writeline( sock, ret_buf, strlen( ret_buf ) );
+		write_client( sock, "listing info for connected drives...\n" );
 
 		fp = popen( "./show_connected_drives.sh", "r" );
 
 		while( fgets( ret_buf, sizeof( ret_buf ), fp ) )
-		{
 			Writeline( sock, ret_buf, strlen( ret_buf ) );
-		}
 
 		pclose( fp );
 
 		return srv_cont;
 
 	case '4':
-		strcpy( ret_buf, "exiting...\n" );
-		Writeline( sock, ret_buf, strlen( ret_buf ) );
+		write_client( sock, "exiting...\n" );
 
 		return srv_quit;
 
 	default:
-		sprintf( ret_buf, "'%c' is not a valid option, please try again.\n", buffer[ 0 ] );
-		Writeline( sock, ret_buf, strlen( ret_buf ) );
+		write_client( sock, "'%c' is not a valid option, please try again.\n", buffer[ 0 ] );
 
 		return srv_invalid;
 	}

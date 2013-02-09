@@ -83,9 +83,18 @@ ssize_t Writeline( int sockd, const void *vptr, size_t n )
 }
 
 
-ssize_t write_client( int sock_fd, char *msg )
+ssize_t write_client( int sock_fd, char *msg, ... )
 {
-	return Writeline( sock_fd, msg, strlen( msg ) );
+	char 		ret_buf[ MAX_LINE ];
+	va_list		ap;
+
+	va_start( ap, msg );
+
+	vsprintf( ret_buf, msg, ap );
+
+	va_end( ap );
+
+	return Writeline( sock_fd, ret_buf, strlen( ret_buf ) );
 }
 
 
