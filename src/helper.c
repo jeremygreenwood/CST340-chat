@@ -14,22 +14,29 @@
 */
 
 #include "helper.h"
-#include <sys/socket.h>
-#include <unistd.h>
-#include <errno.h>
 
 
 // read a line from a socket
 ssize_t Readline(int sockd, void *vptr, size_t maxlen)
 {
-    ssize_t n, rc;
-    char    c, *buffer;
+//	int			res;
+    ssize_t 	n;
+    ssize_t 	rc;
+    char    	c;
+    char       *buffer;
 
     buffer = vptr;
 
     for( n = 1; n < maxlen; n++ )
     {
-		if( (rc = read(sockd, &c, 1)) == 1 )
+    	rc = read( sockd, &c, 1 );
+
+		// TODO remove this
+		fprintf( stderr, "Error: rc:       %ld \n", rc );
+		fprintf( stderr, "     : c(ascii): %c  \n", c  );
+		fprintf( stderr, "     : c(hex):   %x  \n", c  );
+
+		if( rc == 1 )
 		{
 			*buffer++ = c;
 			if( c == '\n' )
@@ -37,6 +44,9 @@ ssize_t Readline(int sockd, void *vptr, size_t maxlen)
 		}
 		else if( rc == 0 )
 		{
+			// This case happens when the client unexpectedly closes.
+			// Currently this crashes the server.
+			// In this case the thread should be freed.
 			if ( n == 1 )
 				return 0;
 			else
@@ -81,3 +91,9 @@ ssize_t Writeline(int sockd, const void *vptr, size_t n)
     return n;
 }
 
+
+void server_error(char *msg)
+{
+	fprintf( stderr, "%s\n", msg );
+	exit( EXIT_FAILURE );
+}

@@ -6,6 +6,8 @@
  Description : simple multi-threaded server with menu for various functions.
 ===========================================================================*/
 
+// FIXME currently server crashes when client severs socket
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,7 +50,6 @@ typedef enum
 client_status_type process_client_data(int sock, char *buffer);
 void *worker_proc(void *arg);
 void set_sock_reuse(int fd);
-void server_error(char *msg);
 
 int main(int argc, char *argv[])
 {
@@ -219,6 +220,7 @@ void *worker_proc(void *arg)
 				"    3.  list drives on server \n" \
 				"    4.  exit \n\n:"
 			  );
+
 		Writeline( conn_s, buffer, strlen( buffer ) );
 
 		Readline( conn_s, buffer, MAX_LINE - 1 );
@@ -243,11 +245,4 @@ void set_sock_reuse(int fd)
 {
     int one = 1;
     setsockopt( fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof( one ) );
-}
-
-
-void server_error(char *msg)
-{
-	fprintf( stderr, "%s\n", msg );
-	exit( EXIT_FAILURE );
 }
