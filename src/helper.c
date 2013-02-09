@@ -98,13 +98,6 @@ ssize_t write_client( int sock_fd, char *msg, ... )
 }
 
 
-void server_error( char *msg )
-{
-	fprintf( stderr, "%s\n", msg );
-	exit( EXIT_FAILURE );
-}
-
-
 // Sets up a socket to immediately timeout and become available for reassignment if severed.
 // Use this to avoid the address already in use error.
 void set_sock_reuse( int sock_fd )

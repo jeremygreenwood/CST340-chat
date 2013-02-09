@@ -37,7 +37,6 @@
 ssize_t Readline( int fd, void *vptr, size_t maxlen );
 ssize_t Writeline( int fc, const void *vptr, size_t maxlen );
 ssize_t write_client( int sock_fd, char *msg, ... );
-void server_error( char *msg );
 void set_sock_reuse( int sock_fd );
 
 

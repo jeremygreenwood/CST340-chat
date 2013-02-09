@@ -15,6 +15,7 @@
 #include <arpa/inet.h>        /*  inet (3) funtions         */
 #include <unistd.h>           /*  misc. UNIX functions      */
 #include <pthread.h>
+#include <semaphore.h>
 #include "helper.h"           /*  our own helper functions  */
 
 
@@ -33,7 +34,6 @@ typedef struct
 	pthread_t	thread;
 	int 		used;
 } worker_t;
-worker_t g_worker[ MAX_CONN ];
 
 typedef enum
 {
@@ -43,13 +43,18 @@ typedef enum
 } client_status_type;
 
 
-
+// global variables
+worker_t 		g_worker[ MAX_CONN ];	/* pthread structure array	*/
 char      		shared_buf[ MAX_LINE ];	/* character buffer         */
+sem_t			mutex;
 
 
 // prototypes
-client_status_type process_client_data( int sock, char *buffer );
+client_status_type process_client_msg( int sock, int id, char *chat_msg );
 void *worker_proc( void *arg );
+void server_error( char *msg );
+void lock_buffer( void );
+void unlock_buffer( void );
 
 int main( int argc, char *argv[] )
 {
@@ -62,6 +67,7 @@ int main( int argc, char *argv[] )
     char	   *endptr;                	/* for strtol()             */
 
     memset( &g_worker, 0, sizeof( g_worker ) );
+    sem_init( &mutex, 0, 1 );
 
     // get port number from command line or set to default port
     if( argc == 2 )
@@ -136,62 +142,10 @@ int main( int argc, char *argv[] )
 }
 
 
-client_status_type process_client_data( int sock, char *buffer )
-{
-	FILE 		*fp;
-	char 		ret_buf[ MAX_LINE ];
-
-	// execute menu option received from client
-	switch( buffer[0] )
-	{
-	case '1':
-		write_client( sock, "getting server info...\n" );
-
-		fp = popen( "uname -a", "r" );
-
-		while( fgets( ret_buf, sizeof( ret_buf ), fp ) )
-			Writeline( sock, ret_buf, strlen( ret_buf ) );
-
-		pclose(fp);
-
-		return srv_cont;
-
-	case '2':
-		write_client( sock, "opening cdrom drive...\n" );
-
-		system( "eject" );
-
-		return srv_cont;
-
-	case '3':
-		write_client( sock, "listing info for connected drives...\n" );
-
-		fp = popen( "./show_connected_drives.sh", "r" );
-
-		while( fgets( ret_buf, sizeof( ret_buf ), fp ) )
-			Writeline( sock, ret_buf, strlen( ret_buf ) );
-
-		pclose( fp );
-
-		return srv_cont;
-
-	case '4':
-		write_client( sock, "exiting...\n" );
-
-		return srv_quit;
-
-	default:
-		write_client( sock, "'%c' is not a valid option, please try again.\n", buffer[ 0 ] );
-
-		return srv_invalid;
-	}
-}
-
-
 void *worker_proc( void *arg )
 {
 	int			res;
-    char      	buffer[ MAX_LINE ];      /*  character buffer          */
+    char      	msg[ MAX_LINE ];      /*  character buffer          */
 	client_status_type
 				client_status = srv_cont;
 	worker_t *this_thread;
@@ -202,23 +156,16 @@ void *worker_proc( void *arg )
 
 	int conn_s = this_thread->connection;
 
+	write_client( conn_s, "\nConnected to Jeremy's chat server.  You are logged in as client %d.\n", this_thread->id );
+
 	while( client_status != srv_quit )
 	{
-		write_client(
-						conn_s,
-						"\nConnected to Jeremy's server.  Execute the following commands: \n" \
-						"    1.  get server info \n" \
-						"    2.  open the cdrom drive on server \n" \
-						"    3.  list drives on server \n" \
-						"    4.  exit \n\n:"
-					);
-
-		res = Readline( conn_s, buffer, MAX_LINE - 1 );
+		res = Readline( conn_s, msg, MAX_LINE - 1 );
 
 		if( res == CONN_ERR )
 			break;
 
-		client_status = process_client_data( conn_s, buffer );
+		client_status = process_client_msg( conn_s, this_thread->id, msg );
 	}
 
 	fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->id );
@@ -231,4 +178,42 @@ void *worker_proc( void *arg )
 	this_thread->used = FALSE;
 
 	return NULL;
+}
+
+
+client_status_type process_client_msg( int sock, int id, char *chat_msg )
+{
+	int			i;						/* g_worker index			*/
+
+	// loop through all threads and send message to each that is in use
+	for( i = 0; i < MAX_CONN; i++ )
+	{
+		if( g_worker[ i ].used == TRUE )
+		{
+			// send chat message to active client (including client who sent message)
+			write_client( g_worker[ i ].connection, "Client %d: %s", id, chat_msg );
+		}
+	}
+
+	return srv_cont;
+}
+
+
+void server_error( char *msg )
+{
+	sem_destroy( &mutex );
+	fprintf( stderr, "%s\n", msg );
+	exit( EXIT_FAILURE );
+}
+
+
+void lock_buffer( void )
+{
+	sem_wait( &mutex );
+}
+
+
+void unlock_buffer( void )
+{
+	sem_post( &mutex );
 }
