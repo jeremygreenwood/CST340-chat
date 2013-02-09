@@ -33,6 +33,7 @@ typedef struct
 	int			connection;
 	pthread_t	thread;
 	int 		used;
+	sem_t		write_mutex;
 } worker_t;
 
 typedef enum
@@ -45,16 +46,14 @@ typedef enum
 
 // global variables
 worker_t 		g_worker[ MAX_CONN ];	/* pthread structure array	*/
-char      		shared_buf[ MAX_LINE ];	/* character buffer         */
-sem_t			mutex;
 
 
 // prototypes
 client_status_type process_client_msg( int sock, int id, char *chat_msg );
 void *worker_proc( void *arg );
 void server_error( char *msg );
-void lock_buffer( void );
-void unlock_buffer( void );
+void init_g_worker( void );
+void destroy_g_worker( void );
 
 int main( int argc, char *argv[] )
 {
@@ -66,8 +65,7 @@ int main( int argc, char *argv[] )
     struct    	sockaddr_in servaddr;  	/* socket address structure */
     char	   *endptr;                	/* for strtol()             */
 
-    memset( &g_worker, 0, sizeof( g_worker ) );
-    sem_init( &mutex, 0, 1 );
+    init_g_worker();
 
     // get port number from command line or set to default port
     if( argc == 2 )
@@ -148,7 +146,7 @@ void *worker_proc( void *arg )
     char      	msg[ MAX_LINE ];      /*  character buffer          */
 	client_status_type
 				client_status = srv_cont;
-	worker_t *this_thread;
+	worker_t   *this_thread;
 
 	this_thread = (worker_t *)arg;
 
@@ -190,8 +188,12 @@ client_status_type process_client_msg( int sock, int id, char *chat_msg )
 	{
 		if( g_worker[ i ].used == TRUE )
 		{
+			sem_wait( &g_worker[ i ].write_mutex );
+
 			// send chat message to active client (including client who sent message)
 			write_client( g_worker[ i ].connection, "Client %d: %s", id, chat_msg );
+
+			sem_post( &g_worker[ i ].write_mutex );
 		}
 	}
 
@@ -201,19 +203,27 @@ client_status_type process_client_msg( int sock, int id, char *chat_msg )
 
 void server_error( char *msg )
 {
-	sem_destroy( &mutex );
+	destroy_g_worker();
 	fprintf( stderr, "%s\n", msg );
 	exit( EXIT_FAILURE );
 }
 
 
-void lock_buffer( void )
+void init_g_worker( void )
 {
-	sem_wait( &mutex );
+	int			i;						/* g_worker index			*/
+
+    memset( &g_worker, 0, sizeof( g_worker ) );
+
+    for( i = 0; i < MAX_CONN; i++ )
+    	sem_init( &g_worker[ i ].write_mutex, 0, 1 );
 }
 
 
-void unlock_buffer( void )
+void destroy_g_worker( void )
 {
-	sem_post( &mutex );
+	int			i;						/* g_worker index			*/
+
+    for( i = 0; i < MAX_CONN; i++ )
+    	sem_destroy( &g_worker[ i ].write_mutex );
 }
