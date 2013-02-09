@@ -89,9 +89,7 @@ ssize_t write_client( int sock_fd, char *msg, ... )
 	va_list		ap;
 
 	va_start( ap, msg );
-
 	vsprintf( ret_buf, msg, ap );
-
 	va_end( ap );
 
 	return Writeline( sock_fd, ret_buf, strlen( ret_buf ) );

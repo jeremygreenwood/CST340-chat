@@ -49,7 +49,9 @@ worker_t 		g_worker[ MAX_CONN ];	/* pthread structure array	*/
 
 
 // prototypes
-client_status_type process_client_msg( int sock, int id, char *chat_msg );
+//client_status_type process_client_msg( int sock, int id, char *chat_msg );
+client_status_type process_client_msg( int id, char *chat_msg );
+void write_all_clients( char *msg, ... );
 void *worker_proc( void *arg );
 void server_error( char *msg );
 void init_g_worker( void );
@@ -163,7 +165,8 @@ void *worker_proc( void *arg )
 		if( res == CONN_ERR )
 			break;
 
-		client_status = process_client_msg( conn_s, this_thread->id, msg );
+//		client_status = process_client_msg( conn_s, this_thread->id, msg );
+		client_status = process_client_msg( this_thread->id, msg );
 	}
 
 	fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->id );
@@ -179,9 +182,41 @@ void *worker_proc( void *arg )
 }
 
 
-client_status_type process_client_msg( int sock, int id, char *chat_msg )
+//client_status_type process_client_msg( int sock, int id, char *chat_msg )
+client_status_type process_client_msg( int id, char *chat_msg )
+{
+//	int			i;						/* g_worker index			*/
+//
+//	// loop through all threads and send message to each that is in use
+//	for( i = 0; i < MAX_CONN; i++ )
+//	{
+//		if( g_worker[ i ].used == TRUE )
+//		{
+//			sem_wait( &g_worker[ i ].write_mutex );
+//
+//			// send chat message to active client (including client who sent message)
+//			write_client( g_worker[ i ].connection, "Client %d: %s", id, chat_msg );
+//
+//			sem_post( &g_worker[ i ].write_mutex );
+//		}
+//	}
+
+	write_all_clients( "Client %d: %s", id, chat_msg );
+
+	return srv_cont;
+}
+
+
+// write to all clients with locking performed
+void write_all_clients( char *msg, ... )
 {
 	int			i;						/* g_worker index			*/
+	char 		full_msg[ MAX_LINE ];
+	va_list		ap;
+
+	va_start( ap, msg );
+	vsprintf( full_msg, msg, ap );
+	va_end( ap );
 
 	// loop through all threads and send message to each that is in use
 	for( i = 0; i < MAX_CONN; i++ )
@@ -191,13 +226,11 @@ client_status_type process_client_msg( int sock, int id, char *chat_msg )
 			sem_wait( &g_worker[ i ].write_mutex );
 
 			// send chat message to active client (including client who sent message)
-			write_client( g_worker[ i ].connection, "Client %d: %s", id, chat_msg );
+			write_client( g_worker[ i ].connection, full_msg );
 
 			sem_post( &g_worker[ i ].write_mutex );
 		}
 	}
-
-	return srv_cont;
 }
 
 
