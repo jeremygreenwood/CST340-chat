@@ -46,11 +46,15 @@ typedef enum
 } client_status_type;
 
 
-// prototypes
-client_status_type process_client_data(int sock, char *buffer);
-void *worker_proc(void *arg);
 
-int main(int argc, char *argv[])
+char      		shared_buf[ MAX_LINE ];	/* character buffer         */
+
+
+// prototypes
+client_status_type process_client_data( int sock, char *buffer );
+void *worker_proc( void *arg );
+
+int main( int argc, char *argv[] )
 {
 	int			i;						/* g_worker index			*/
 	int			res;					/* temporary result			*/
@@ -80,13 +84,13 @@ int main(int argc, char *argv[])
     if( list_s < 0 )
     	server_error( "Error creating listening socket" );
 
+    set_sock_reuse( list_s );
+
     // initialize socket address structure
     memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family      = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port        = htons(port);
-
-    set_sock_reuse( list_s );
 
     //  bind socket address to listening socket
     res = bind( list_s, (struct sockaddr *) &servaddr, sizeof( servaddr ) );
@@ -125,11 +129,10 @@ int main(int argc, char *argv[])
 			printf( "Turned away a client \n" );
 
 			// no threads available, send server busy message to client and close conn_s
-			strcpy( buffer, "\nCould not connect to Jeremy's server, all circuits busy. \n" );
-			Writeline( conn_s, buffer, strlen( buffer ) );
+			write_client( conn_s, "\nCould not connect to Jeremy's server, all circuits busy. \n" );
 
 			// close the connection
-			res = close(conn_s);
+			res = close( conn_s );
 			if( res < 0 )
 				server_error( "Error calling close()" );
 		}
@@ -137,7 +140,7 @@ int main(int argc, char *argv[])
 }
 
 
-client_status_type process_client_data(int sock, char *buffer)
+client_status_type process_client_data( int sock, char *buffer )
 {
 	FILE 		*fp;
 	char 		ret_buf[ MAX_LINE ];
@@ -198,7 +201,7 @@ client_status_type process_client_data(int sock, char *buffer)
 }
 
 
-void *worker_proc(void *arg)
+void *worker_proc( void *arg )
 {
 	int			res;
     char      	buffer[ MAX_LINE ];      /*  character buffer          */
@@ -214,16 +217,14 @@ void *worker_proc(void *arg)
 
 	while( client_status != srv_quit )
 	{
-		strcpy(
-				buffer,
-				"\nConnected to Jeremy's server.  Execute the following commands: \n" \
-				"    1.  get server info \n" \
-				"    2.  open the cdrom drive on server \n" \
-				"    3.  list drives on server \n" \
-				"    4.  exit \n\n:"
-			  );
-
-		Writeline( conn_s, buffer, strlen( buffer ) );
+		write_client(
+						conn_s,
+						"\nConnected to Jeremy's server.  Execute the following commands: \n" \
+						"    1.  get server info \n" \
+						"    2.  open the cdrom drive on server \n" \
+						"    3.  list drives on server \n" \
+						"    4.  exit \n\n:"
+					);
 
 		res = Readline( conn_s, buffer, MAX_LINE - 1 );
 

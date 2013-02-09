@@ -17,7 +17,7 @@
 
 
 // read a line from a socket
-ssize_t Readline(int sockd, void *vptr, size_t maxlen)
+ssize_t Readline( int sockd, void *vptr, size_t maxlen )
 {
     ssize_t 	n;
     ssize_t 	rc;
@@ -38,8 +38,7 @@ ssize_t Readline(int sockd, void *vptr, size_t maxlen)
 		}
 		else if( rc == 0 )
 		{
-			// This case happens when the client closes which was crashing the server.
-			// In this case the thread should be freed.
+			// this case happens when the client closes unexpectedly
 			return CONN_ERR;
 		}
 		else
@@ -56,7 +55,7 @@ ssize_t Readline(int sockd, void *vptr, size_t maxlen)
 
 
 // write a line to a socket
-ssize_t Writeline(int sockd, const void *vptr, size_t n)
+ssize_t Writeline( int sockd, const void *vptr, size_t n )
 {
     size_t    	nleft;
     ssize_t     nwritten;
@@ -84,7 +83,13 @@ ssize_t Writeline(int sockd, const void *vptr, size_t n)
 }
 
 
-void server_error(char *msg)
+ssize_t write_client( int sock_fd, char *msg )
+{
+	return Writeline( sock_fd, msg, strlen( msg ) );
+}
+
+
+void server_error( char *msg )
 {
 	fprintf( stderr, "%s\n", msg );
 	exit( EXIT_FAILURE );
@@ -93,8 +98,8 @@ void server_error(char *msg)
 
 // Sets up a socket to immediately timeout and become available for reassignment if severed.
 // Use this to avoid the address already in use error.
-void set_sock_reuse(int fd)
+void set_sock_reuse( int sock_fd )
 {
     int one = 1;
-    setsockopt( fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof( one ) );
+    setsockopt( sock_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof( one ) );
 }
