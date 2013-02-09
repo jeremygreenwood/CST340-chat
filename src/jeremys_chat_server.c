@@ -49,7 +49,6 @@ typedef enum
 // prototypes
 client_status_type process_client_data(int sock, char *buffer);
 void *worker_proc(void *arg);
-void set_sock_reuse(int fd);
 
 int main(int argc, char *argv[])
 {
@@ -205,9 +204,12 @@ void *worker_proc(void *arg)
     char      	buffer[ MAX_LINE ];      /*  character buffer          */
 	client_status_type
 				client_status = srv_cont;
-	worker_t *this_thread = (worker_t *) arg;
+	worker_t *this_thread;
 
-	printf( "this_thread->connection: %d", this_thread->connection );
+	this_thread = (worker_t *)arg;
+
+	printf( "Client connected on thread %d. \n", this_thread->id );
+
 	int conn_s = this_thread->connection;
 
 	while( client_status != srv_quit )
@@ -223,10 +225,15 @@ void *worker_proc(void *arg)
 
 		Writeline( conn_s, buffer, strlen( buffer ) );
 
-		Readline( conn_s, buffer, MAX_LINE - 1 );
+		res = Readline( conn_s, buffer, MAX_LINE - 1 );
+
+		if( res == CONN_ERR )
+			break;
 
 		client_status = process_client_data( conn_s, buffer );
 	}
+
+	fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->id );
 
 	// close the connection
 	res = close( conn_s );
@@ -236,13 +243,4 @@ void *worker_proc(void *arg)
 	this_thread->used = FALSE;
 
 	return NULL;
-}
-
-
-// Sets up a socket to immediately timeout and become available for reassignment if severed.
-// Use this to avoid the address already in use error.
-void set_sock_reuse(int fd)
-{
-    int one = 1;
-    setsockopt( fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof( one ) );
 }

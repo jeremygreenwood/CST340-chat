@@ -19,7 +19,6 @@
 // read a line from a socket
 ssize_t Readline(int sockd, void *vptr, size_t maxlen)
 {
-//	int			res;
     ssize_t 	n;
     ssize_t 	rc;
     char    	c;
@@ -31,11 +30,6 @@ ssize_t Readline(int sockd, void *vptr, size_t maxlen)
     {
     	rc = read( sockd, &c, 1 );
 
-		// TODO remove this
-		fprintf( stderr, "Error: rc:       %ld \n", rc );
-		fprintf( stderr, "     : c(ascii): %c  \n", c  );
-		fprintf( stderr, "     : c(hex):   %x  \n", c  );
-
 		if( rc == 1 )
 		{
 			*buffer++ = c;
@@ -44,19 +38,15 @@ ssize_t Readline(int sockd, void *vptr, size_t maxlen)
 		}
 		else if( rc == 0 )
 		{
-			// This case happens when the client unexpectedly closes.
-			// Currently this crashes the server.
+			// This case happens when the client closes which was crashing the server.
 			// In this case the thread should be freed.
-			if ( n == 1 )
-				return 0;
-			else
-				break;
+			return CONN_ERR;
 		}
 		else
 		{
 			if( errno == EINTR )
 				continue;
-			return -1;
+			return CONN_ERR;
 		}
     }
 
@@ -77,9 +67,11 @@ ssize_t Writeline(int sockd, const void *vptr, size_t n)
 
     while( nleft > 0 )
     {
-		if( (nwritten = write(sockd, buffer, nleft)) <= 0 )
+    	nwritten = write( sockd, buffer, nleft );
+
+		if( nwritten <= 0 )
 		{
-			if ( errno == EINTR )
+			if( errno == EINTR )
 				nwritten = 0;
 			else
 				return -1;
@@ -96,4 +88,13 @@ void server_error(char *msg)
 {
 	fprintf( stderr, "%s\n", msg );
 	exit( EXIT_FAILURE );
+}
+
+
+// Sets up a socket to immediately timeout and become available for reassignment if severed.
+// Use this to avoid the address already in use error.
+void set_sock_reuse(int fd)
+{
+    int one = 1;
+    setsockopt( fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof( one ) );
 }
