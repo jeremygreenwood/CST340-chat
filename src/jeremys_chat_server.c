@@ -1,9 +1,9 @@
 /*===========================================================================
- Name        : jeremys_server_multi.c
+ Name        : jeremys_chat_server.c
  Author      : Jeremy Greenwood <jeremy.greenwood@oit.edu>
  Course      : CST 340
- Assignment  : 4
- Description : simple multi-threaded server with menu for various functions.
+ Assignment  : 5
+ Description : multi-threaded chat server.
 ===========================================================================*/
 
 
@@ -49,7 +49,6 @@ worker_t 		g_worker[ MAX_CONN ];	/* pthread structure array	*/
 
 
 // prototypes
-//client_status_type process_client_msg( int sock, int id, char *chat_msg );
 client_status_type process_client_msg( int id, char *chat_msg );
 void write_all_clients( char *msg, ... );
 void *worker_proc( void *arg );
@@ -157,6 +156,7 @@ void *worker_proc( void *arg )
 	int conn_s = this_thread->connection;
 
 	write_client( conn_s, "\nConnected to Jeremy's chat server.  You are logged in as client %d.\n", this_thread->id );
+	write_all_clients( "Client %d joined the chat.\n", this_thread->id );
 
 	while( client_status != srv_quit )
 	{
@@ -165,11 +165,12 @@ void *worker_proc( void *arg )
 		if( res == CONN_ERR )
 			break;
 
-//		client_status = process_client_msg( conn_s, this_thread->id, msg );
 		client_status = process_client_msg( this_thread->id, msg );
 	}
 
 	fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->id );
+
+	write_all_clients( "Client %d left the chat.\n", this_thread->id );
 
 	// close the connection
 	res = close( conn_s );
@@ -182,25 +183,8 @@ void *worker_proc( void *arg )
 }
 
 
-//client_status_type process_client_msg( int sock, int id, char *chat_msg )
 client_status_type process_client_msg( int id, char *chat_msg )
 {
-//	int			i;						/* g_worker index			*/
-//
-//	// loop through all threads and send message to each that is in use
-//	for( i = 0; i < MAX_CONN; i++ )
-//	{
-//		if( g_worker[ i ].used == TRUE )
-//		{
-//			sem_wait( &g_worker[ i ].write_mutex );
-//
-//			// send chat message to active client (including client who sent message)
-//			write_client( g_worker[ i ].connection, "Client %d: %s", id, chat_msg );
-//
-//			sem_post( &g_worker[ i ].write_mutex );
-//		}
-//	}
-
 	write_all_clients( "Client %d: %s", id, chat_msg );
 
 	return srv_cont;
@@ -211,7 +195,7 @@ client_status_type process_client_msg( int id, char *chat_msg )
 void write_all_clients( char *msg, ... )
 {
 	int			i;						/* g_worker index			*/
-	char 		full_msg[ MAX_LINE ];
+	char 		full_msg[ MAX_LINE ];	/* constructed message		*/
 	va_list		ap;
 
 	va_start( ap, msg );
