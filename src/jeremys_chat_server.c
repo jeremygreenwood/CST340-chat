@@ -20,7 +20,7 @@
 
 
 // constants
-#define MAX_CONN			( 3 )
+#define MAX_CONN			( 10 )
 #define ECHO_PORT      		( 3456 )
 #define TRUE				( 1 )
 #define FALSE				( 0 )
