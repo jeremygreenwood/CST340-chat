@@ -26,10 +26,10 @@
 #include <sys/socket.h>
 #include <errno.h>
 
-#define LISTENQ        	( 1024 )	/* backlog for listen()   	*/
+#define LISTENQ        		1024	/* backlog for listen()   	*/
 
-#define MAX_LINE      	( 1024 )	/* maximum string length	*/
-#define CONN_ERR		( -1 )		/* connection error			*/
+#define MAX_LINE      		1024	/* maximum string length	*/
+#define CONN_ERR			-1		/* connection error			*/
 
 
 /*  Function declarations  */
