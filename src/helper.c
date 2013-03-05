@@ -96,6 +96,12 @@ ssize_t write_client( int sock_fd, char *msg, ... )
 }
 
 
+ssize_t read_client( int sock_fd, char *msg_dest )
+{
+    return read_line( sock_fd, msg_dest, MAX_LINE - 1 );
+}
+
+
 // Sets up a socket to immediately timeout and become available for reassignment if severed.
 // Use this to avoid the address already in use error.
 void set_sock_reuse( int sock_fd )

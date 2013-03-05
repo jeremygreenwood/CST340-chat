@@ -109,22 +109,37 @@ void *worker_proc( void *arg )
 
     this_thread = (worker_t *)arg;
 
-    printf( "Client connected on thread %d. \n", this_thread->user.user_id );
+    printf( "Client connected on thread %d, obtaining username... \n", this_thread->user.user_id );
 
     int conn_s = this_thread->connection;
     this_thread->logout = false;
 
-    // TODO prompt and save name here
-
-    // TODO replace printing user_id with user_name
-    write_client( conn_s, "\nConnected to chat server.  You are logged in as client %d.\n", this_thread->user.user_id );
-    write_all_clients( "Client %d joined the chat.\n", this_thread->user.user_id );
-
     // TODO set default chatroom
+
+    // prompt and save client's username
+    write_client( conn_s, "\nEnter username: " );
+
+    result = read_client( conn_s, msg );
+
+    if( result == CONN_ERR )
+    {
+        this_thread->logout = true;
+    }
+    else
+    {
+        // set username and respond to client
+        strncpy( this_thread->user.user_name, msg, strlen( msg ) - 2 );
+        write_client( conn_s, "\nConnected to chat server.  You are logged in as %s.\n", this_thread->user.user_name );
+        // TODO update write_all_clients() to take a chat_room_t parameter so only clients in a
+        // specific chatroom receive the message
+        write_all_clients( "%s joined the chat.\n", this_thread->user.user_name );
+
+        printf( "%s is running on thread %d.\n", this_thread->user.user_name, this_thread->user.user_id );
+    }
 
     while( this_thread->logout == false )
     {
-        result = read_line( conn_s, msg, MAX_LINE - 1 );
+        result = read_client( conn_s, msg );
 
         if( result == CONN_ERR )
             break;
@@ -132,9 +147,9 @@ void *worker_proc( void *arg )
         process_client_msg( this_thread, msg );
     }
 
-    fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->user.user_id );
+    printf( "%s on thread %d disconnected. \n", this_thread->user.user_name , this_thread->user.user_id );
 
-    write_all_clients( "Client %d left the chat. \n", this_thread->user.user_id );
+    write_all_clients( "%s left the chat. \n", this_thread->user.user_name );
 
     // close the connection
     result = close( conn_s );
@@ -161,7 +176,7 @@ void process_client_msg( worker_t *worker, char *chat_msg )
     else
     {
         // TODO write to current chatroom only
-        write_all_clients( "Client %d: %s", worker->user.user_id, chat_msg );
+        write_all_clients( "%s: %s", worker->user.user_name, chat_msg );
     }
 }
 
