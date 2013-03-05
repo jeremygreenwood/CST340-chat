@@ -17,7 +17,7 @@
 
 
 // read a line from a socket
-ssize_t Readline( int sockd, void *vptr, size_t maxlen )
+ssize_t read_line( int sockd, void *vptr, size_t maxlen )
 {
     ssize_t     n;
     ssize_t     rc;
@@ -55,7 +55,7 @@ ssize_t Readline( int sockd, void *vptr, size_t maxlen )
 
 
 // write a line to a socket
-ssize_t Writeline( int sockd, const void *vptr, size_t n )
+ssize_t write_line( int sockd, const void *vptr, size_t n )
 {
     size_t      nleft;
     ssize_t     nwritten;
@@ -92,7 +92,7 @@ ssize_t write_client( int sock_fd, char *msg, ... )
     vsprintf( ret_buf, msg, ap );
     va_end( ap );
 
-    return Writeline( sock_fd, ret_buf, strlen( ret_buf ) );
+    return write_line( sock_fd, ret_buf, strlen( ret_buf ) );
 }
 
 

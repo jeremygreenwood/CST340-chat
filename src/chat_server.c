@@ -1,4 +1,5 @@
 /*===========================================================================
+ Filename    : chat_server.c
  Authors     : Jeremy Greenwood <jeremy.greenwood@oit.edu>
              :
  Course      : CST 340
@@ -7,61 +8,12 @@
                https://github.com/jeremygreenwood/CST340-chat
 ===========================================================================*/
 
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <sys/socket.h>     /*  socket definitions        */
-#include <sys/types.h>      /*  socket types              */
-#include <arpa/inet.h>      /*  inet (3) funtions         */
-#include <unistd.h>         /*  misc. UNIX functions      */
-#include <pthread.h>
-#include <semaphore.h>
-#include "helper.h"         /*  our own helper functions  */
-
-
-// constants
-#define MAX_CONN            10
-#define ECHO_PORT           3456
-#define MAX_ARGS            16
-#define MAX_ARG_LEN         64
-#define MAX_NAME_LEN        32
-
-// comment/uncomment DEBUG_* to enable print debugging
-//#define DEBUG_CMD
-
-// command IDs
-#define CMD_SIG             "/"
-#define CMD_LOGOUT          "logout"
-
-
-// types
-typedef struct
-{
-    int         id;
-    char        name[ MAX_NAME_LEN ];
-    int         connection;
-    pthread_t   thread;
-    bool        used;
-    sem_t       write_mutex;
-    bool        logout;
-} worker_t;
+#include "chat_server.h"
 
 
 // global variables
-worker_t        g_worker[ MAX_CONN ];   /* pthread structure array  */
+worker_t        g_worker[ MAX_CONN ];     /* pthread structure array  */
 
-
-// prototypes
-void *worker_proc( void *arg );
-void process_client_msg( worker_t *worker, char *chat_msg );
-int get_command( char *msg, char **argv );
-void process_command( worker_t *worker, int argc, char **argv );
-void write_all_clients( char *msg, ... );
-void server_error( char *msg );
-void init_g_worker( void );
-void destroy_g_worker( void );
 
 int main( int argc, char *argv[] )
 {
@@ -122,7 +74,7 @@ int main( int argc, char *argv[] )
             if( g_worker[ i ].used == false )
             {
                 // found an available thread
-                g_worker[ i ].id = i;
+                g_worker[ i ].user.user_id = i;
                 g_worker[ i ].connection = conn_s;
                 g_worker[ i ].used = true;
 
@@ -151,39 +103,42 @@ int main( int argc, char *argv[] )
 
 void *worker_proc( void *arg )
 {
-    int         res;
+    int         result;
     char        msg[ MAX_LINE ];      /*  character buffer          */
     worker_t   *this_thread;
 
     this_thread = (worker_t *)arg;
 
-    printf( "Client connected on thread %d. \n", this_thread->id );
+    printf( "Client connected on thread %d. \n", this_thread->user.user_id );
 
     int conn_s = this_thread->connection;
     this_thread->logout = false;
 
     // TODO prompt and save name here
 
-    write_client( conn_s, "\nConnected to chat server.  You are logged in as client %d.\n", this_thread->id );
-    write_all_clients( "Client %d joined the chat.\n", this_thread->id );
+    // TODO replace printing user_id with user_name
+    write_client( conn_s, "\nConnected to chat server.  You are logged in as client %d.\n", this_thread->user.user_id );
+    write_all_clients( "Client %d joined the chat.\n", this_thread->user.user_id );
+
+    // TODO set default chatroom
 
     while( this_thread->logout == false )
     {
-        res = Readline( conn_s, msg, MAX_LINE - 1 );
+        result = read_line( conn_s, msg, MAX_LINE - 1 );
 
-        if( res == CONN_ERR )
+        if( result == CONN_ERR )
             break;
 
         process_client_msg( this_thread, msg );
     }
 
-    fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->id );
+    fprintf( stderr, "Client on thread %d disconnected. \n", this_thread->user.user_id );
 
-    write_all_clients( "Client %d left the chat.\n", this_thread->id );
+    write_all_clients( "Client %d left the chat. \n", this_thread->user.user_id );
 
     // close the connection
-    res = close( conn_s );
-    if( res < 0 )
+    result = close( conn_s );
+    if( result < 0 )
         server_error( "Error calling close()" );
 
     this_thread->used = false;
@@ -205,7 +160,8 @@ void process_client_msg( worker_t *worker, char *chat_msg )
     }
     else
     {
-        write_all_clients( "Client %d: %s", worker->id, chat_msg );
+        // TODO write to current chatroom only
+        write_all_clients( "Client %d: %s", worker->user.user_id, chat_msg );
     }
 }
 
