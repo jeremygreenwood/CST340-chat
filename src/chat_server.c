@@ -12,12 +12,14 @@
 
 
 // global variables
-worker_t        g_worker[ MAX_CONN ];     /* pthread structure array  */
+user_t          user_thread[ MAX_CONN ];/* pthread/user struct array*/
+chat_room_t     chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
+chat_room_t     lobby;
 
 
 int main( int argc, char *argv[] )
 {
-    int         i;                      /* g_worker index           */
+    int         i;                      /* user_thread index        */
     int         res;                    /* temporary result         */
     int         list_s;                 /* listening socket         */
     int         conn_s;                 /* connection socket        */
@@ -25,7 +27,7 @@ int main( int argc, char *argv[] )
     struct      sockaddr_in servaddr;   /* socket address structure */
     char       *endptr;                 /* for strtol()             */
 
-    init_g_worker();
+    init_user_thread();
 
     // get port number from command line or set to default port
     if( argc == 2 )
@@ -61,6 +63,9 @@ int main( int argc, char *argv[] )
     if( res < 0 )
         server_error( "Error calling listen()" );
 
+    // create lobby (default) chatroom
+    init_chatroom( &lobby, 0, DFLT_CHATROOM_NAME );
+
     while( 1 )
     {
         // wait for connection
@@ -71,15 +76,16 @@ int main( int argc, char *argv[] )
         // search for available thread
         for( i = 0; i < MAX_CONN; i++ )
         {
-            if( g_worker[ i ].used == false )
+            if( user_thread[ i ].used == false )
             {
                 // found an available thread
-                g_worker[ i ].user.user_id = i;
-                g_worker[ i ].connection = conn_s;
-                g_worker[ i ].used = true;
+                user_thread[ i ].user_id = i;
+                user_thread[ i ].connection = conn_s;
+                user_thread[ i ].used = true;
+                user_thread[ i ].logout = false;
 
                 // spawn new thread
-                pthread_create( &g_worker[ i ].thread, NULL, worker_proc, &g_worker[ i ] );
+                pthread_create( &user_thread[ i ].thread, NULL, user_proc, &user_thread[ i ] );
                 break;
             }
         }
@@ -101,20 +107,30 @@ int main( int argc, char *argv[] )
 }
 
 
-void *worker_proc( void *arg )
+void *user_proc( void *arg )
 {
+    int         usr_idx;
     int         result;
+    int         conn_s;
     char        msg[ MAX_LINE ];      /*  character buffer          */
-    worker_t   *this_thread;
+    user_t     *this_thread;
 
-    this_thread = (worker_t *)arg;
+    this_thread = (user_t *)arg;
 
-    printf( "Client connected on thread %d, obtaining username... \n", this_thread->user.user_id );
+    printf( "Client connected on thread %d, obtaining username... \n", this_thread->user_id );
 
-    int conn_s = this_thread->connection;
-    this_thread->logout = false;
+    conn_s = this_thread->connection;
 
-    // TODO set default chatroom
+    // set user's chatroom to lobby (default chatroom)
+    this_thread->chat_room = &lobby;
+
+    // add user to chatroom's user* array
+    for( usr_idx = 0; usr_idx < MAX_USERS_IN_ROOM; usr_idx++ )
+        if( this_thread->chat_room->users[ usr_idx ] == NULL )
+        {
+            this_thread->chat_room->users[ usr_idx ] = this_thread;
+            break;
+        }
 
     // prompt and save client's username
     write_client( conn_s, "\nEnter username: " );
@@ -128,13 +144,13 @@ void *worker_proc( void *arg )
     else
     {
         // set username and respond to client
-        strncpy( this_thread->user.user_name, msg, strlen( msg ) - 2 );
-        write_client( conn_s, "\nConnected to chat server.  You are logged in as %s.\n", this_thread->user.user_name );
-        // TODO update write_all_clients() to take a chat_room_t parameter so only clients in a
-        // specific chatroom receive the message
-        write_all_clients( "%s joined the chat.\n", this_thread->user.user_name );
+        strncpy( this_thread->user_name, msg, strlen( msg ) - 2 );
 
-        printf( "%s is running on thread %d.\n", this_thread->user.user_name, this_thread->user.user_id );
+        write_client( conn_s, "\nConnected to chat server.  You are logged in as %s.\n", this_thread->user_name );
+
+        write_chatroom( this_thread, "%s joined the chat.\n", this_thread->user_name );
+
+        printf( "%s is running on thread %d.\n", this_thread->user_name, this_thread->user_id );
     }
 
     while( this_thread->logout == false )
@@ -147,9 +163,9 @@ void *worker_proc( void *arg )
         process_client_msg( this_thread, msg );
     }
 
-    printf( "%s on thread %d disconnected. \n", this_thread->user.user_name , this_thread->user.user_id );
+    printf( "%s on thread %d disconnected. \n", this_thread->user_name , this_thread->user_id );
 
-    write_all_clients( "%s left the chat. \n", this_thread->user.user_name );
+    write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
 
     // close the connection
     result = close( conn_s );
@@ -157,12 +173,13 @@ void *worker_proc( void *arg )
         server_error( "Error calling close()" );
 
     this_thread->used = false;
+    this_thread->chat_room->users[ usr_idx ] = NULL;
 
     return NULL;
 }
 
 
-void process_client_msg( worker_t *worker, char *chat_msg )
+void process_client_msg( user_t *user, char *chat_msg )
 {
     int     num_args;
     char   *arg_array[ MAX_ARGS ];
@@ -171,12 +188,11 @@ void process_client_msg( worker_t *worker, char *chat_msg )
 
     if( num_args > 0 )
     {
-        process_command( worker, num_args, arg_array );
+        process_command( user, num_args, arg_array );
     }
     else
     {
-        // TODO write to current chatroom only
-        write_all_clients( "%s: %s", worker->user.user_name, chat_msg );
+        write_chatroom( user, "%s: %s", user->user_name, chat_msg );
     }
 }
 
@@ -198,7 +214,7 @@ int get_command( char *msg, char **argv )
 }
 
 
-void process_command( worker_t *worker, int argc, char **argv )
+void process_command( user_t *user, int argc, char **argv )
 {
 #ifdef DEBUG_CMD
     int i;
@@ -209,7 +225,7 @@ void process_command( worker_t *worker, int argc, char **argv )
 
     if( strncmp( argv[ 0 ], CMD_LOGOUT, strlen( CMD_LOGOUT ) ) == 0 )
     {
-        worker->logout = true;
+        user->logout = true;
     }
     // XXX next case goes here
 //  else if(  )
@@ -225,7 +241,7 @@ void process_command( worker_t *worker, int argc, char **argv )
     {
         // alert the client the command is invalid
         // TODO show a list of valid commands
-        write_client( worker->connection, "Invalid command: %s \n", argv[ 0 ] );
+        write_client( user->connection, "Invalid command: %s \n", argv[ 0 ] );
     }
 
 }
@@ -234,7 +250,7 @@ void process_command( worker_t *worker, int argc, char **argv )
 // write to all clients with locking performed
 void write_all_clients( char *msg, ... )
 {
-    int         i;                      /* g_worker index           */
+    int         i;                      /* user_thread index        */
     char        full_msg[ MAX_LINE ];   /* constructed message      */
     va_list     ap;
 
@@ -245,14 +261,14 @@ void write_all_clients( char *msg, ... )
     // loop through all threads and send message to each that is in use
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if( g_worker[ i ].used == true )
+        if( user_thread[ i ].used == true )
         {
-            sem_wait( &g_worker[ i ].write_mutex );
+            sem_wait( &user_thread[ i ].write_mutex );
 
             // send chat message to active client (including client who sent message)
-            write_client( g_worker[ i ].connection, full_msg );
+            write_client( user_thread[ i ].connection, full_msg );
 
-            sem_post( &g_worker[ i ].write_mutex );
+            sem_post( &user_thread[ i ].write_mutex );
         }
     }
 }
@@ -260,27 +276,72 @@ void write_all_clients( char *msg, ... )
 
 void server_error( char *msg )
 {
-    destroy_g_worker();
+    destroy_user_thread();
     fprintf( stderr, "%s\n", msg );
     exit( EXIT_FAILURE );
 }
 
 
-void init_g_worker( void )
+void init_user_thread( void )
 {
-    int         i;                      /* g_worker index           */
+    int         i;                      /* user_thread index           */
 
-    memset( &g_worker, 0, sizeof( g_worker ) );
+    memset( &user_thread, 0, sizeof( user_thread ) );
 
     for( i = 0; i < MAX_CONN; i++ )
-        sem_init( &g_worker[ i ].write_mutex, 0, 1 );
+        sem_init( &user_thread[ i ].write_mutex, 0, 1 );
 }
 
 
-void destroy_g_worker( void )
+void destroy_user_thread( void )
 {
-    int         i;                      /* g_worker index           */
+    int         i;                      /* user_thread index           */
 
     for( i = 0; i < MAX_CONN; i++ )
-        sem_destroy( &g_worker[ i ].write_mutex );
+        sem_destroy( &user_thread[ i ].write_mutex );
 }
+
+
+void init_chatroom( chat_room_t *room, int id, char *name )
+{
+    int i;
+
+    room->room_id = id;
+    strncpy( room->room_name, name, MAX_ROOM_NAME_LEN );
+    room->user_count = 0;
+    for( i = 0; i < MAX_USERS_IN_ROOM; i++ )
+        room->users[ i ] = NULL;
+    memset( room->history, 0, sizeof( room->history ) );
+}
+
+
+void write_chatroom( user_t *user, char *msg, ... )
+{
+    int         i;                      /* user_thread index        */
+    char        full_msg[ MAX_LINE ];   /* constructed message      */
+    va_list     ap;
+
+    va_start( ap, msg );
+    vsprintf( full_msg, msg, ap );
+    va_end( ap );
+
+    // loop through all users in chatroom
+    for( i = 0; i < MAX_USERS_IN_ROOM; i++ )
+    {
+        // check that each user in the chatroom is used before sending message
+        if( user->chat_room->users[ i ] != NULL && user->chat_room->users[ i ]->used == true )
+        {
+            printf( "writing to %s on thread %d\n",
+                    user->chat_room->users[ i ]->user_name,
+                    user->chat_room->users[ i ]->user_id );
+
+            sem_wait( &user->chat_room->users[ i ]->write_mutex );
+
+            // send message to user in chatroom (including user who sent message)
+            write_client( user->chat_room->users[ i ]->connection, full_msg );
+
+            sem_post( &user->chat_room->users[ i ]->write_mutex );
+        }
+    }
+}
+
