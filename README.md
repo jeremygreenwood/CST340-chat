@@ -35,12 +35,24 @@ BUILD:
 
 RUN:
 
-    Note: additional steps are necessary to allow connections past a firewall.
+    Note: additional steps are necessary to allow connections past a firewall on the server.
     
-    Example 1 - run the following commands to run the chat server application with default port (3456):
+    
+    Example 1:
+    
+    run the following commands to run the chat server application with default port (3456):
     
     ./CST340-chat
+    
+    run the following command on the client to connect:
+    
+    telnet <server_ip_address> 3456
+    
     
     Example 2 - run the following commands to run the chat server application with port 3555:
     
     ./CST340-chat 3555
+    
+    run the following command on the client to connect:
+    
+    telnet <server_ip_address> 3555
