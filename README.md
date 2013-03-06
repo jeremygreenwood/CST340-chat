@@ -40,7 +40,7 @@ RUN:
     
     Example 1:
     
-    run the following commands to run the chat server application with default port (3456):
+    run the following command to run the chat server application with default port (3456):
     
     ./CST340-chat
     
@@ -51,7 +51,7 @@ RUN:
     
     Example 2:
     
-    run the following commands to run the chat server application with port 3555:
+    run the following command to run the chat server application with port 3555:
     
     ./CST340-chat 3555
     
