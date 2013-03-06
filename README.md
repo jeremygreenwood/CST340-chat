@@ -49,7 +49,9 @@ RUN:
     telnet <server_ip_address> 3456
     
     
-    Example 2 - run the following commands to run the chat server application with port 3555:
+    Example 2:
+    
+    run the following commands to run the chat server application with port 3555:
     
     ./CST340-chat 3555
     
