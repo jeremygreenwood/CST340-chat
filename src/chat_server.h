@@ -33,7 +33,7 @@
 #define MAX_USER_NAME_LEN   32
 #define MAX_ROOM_NAME_LEN   32
 #define MAX_USERS_IN_ROOM   MAX_CONN
-#define BUFFER_SIZE         100000
+#define BUFFER_SIZE         1024
 #define DFLT_CHATROOM_NAME  "lobby"
 
 
@@ -48,7 +48,8 @@
 #define CMD_CREATE_ROOM     "createchatroom"
 #define CMD_JOIN_ROOM       "joinchatroom"
 #define CMD_LEAVE_ROOM      "leavechatroom"     /* this should be a wrapper to join default chatroom */
-
+#define CMD_LIST_ROOM_USERS "list"
+#define CMD_LIST_ALL_USERS  "listall"
 
 // types
 typedef struct user_t
@@ -56,6 +57,7 @@ typedef struct user_t
     int                 user_id;
     char                user_name[ MAX_USER_NAME_LEN ];
     struct chat_room_t *chat_room;
+    struct user_t      *reply;                  /* reference to user who whispered to this user */
     bool                admin;
     int                 connection;
     pthread_t           thread;
@@ -71,8 +73,7 @@ typedef struct chat_room_t
     char           room_name[ MAX_ROOM_NAME_LEN ];
     int            user_count;
     struct user_t *users[ MAX_USERS_IN_ROOM ];
-    char           history[ BUFFER_SIZE ];
-//  bool           active;                             // is user_count > 0 the same as active?
+    char          history[ BUFFER_SIZE ];
 } chat_room_t;
 
 
@@ -88,6 +89,13 @@ void destroy_user_thread( void );
 
 void init_chatroom( chat_room_t *room, int id, char *name );
 void write_chatroom( user_t *user, char *msg, ... );
+bool chatroom_is_active( chat_room_t *room );
+
+bool create_chat_room( char *name );
+bool join_chat_room( char *name );
+bool list_chat_rooms( void );
+bool leave_chat_room( void );
+
 
 
 #endif /* CHAT_SERVER_H_ */
