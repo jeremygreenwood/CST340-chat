@@ -149,6 +149,9 @@ void *user_proc( void *arg )
         // set username and respond to client
         strncpy( this_thread->user_name, msg, strlen( msg ) - 2 );
 
+        // check username for admin
+        admin_check( this_thread );
+
         write_client( conn_s, "\nConnected to chat server.  You are logged in as %s.\n", this_thread->user_name );
 
         write_chatroom( this_thread, "%s joined the chat.\n", this_thread->user_name );
@@ -392,4 +395,36 @@ bool create_chat_room( user_t *user_submitter, char *new_name )
         write_client( user_submitter->connection, "Usage: /createchatroom <chatroomname>\n");
     }
     return true;
+}
+
+
+bool admin_check(user_t *user_submitted )
+{
+    if( strcmp( user_submitted->user_name, ADMIN_NAME ) == 0 )
+    {
+        // declare variables for use in checking password
+        char msg[ sizeof( ADMIN_PASSWORD ) ];
+        int result;
+
+        // prompt for password
+        write_client ( user_submitted->connection, "\nEnter password: " );
+
+        result = read_client( user_submitted->connection, msg );
+
+        if( result == CONN_ERR )
+        {
+            user_submitted->logout = true;
+            return false;
+        }
+
+        if( strcmp( msg, ADMIN_PASSWORD ) == 0 )
+        {
+            user_submitted->admin = true;
+            write_client ( user_submitted->connection, "\nWelcome Admin!");
+
+            return true;
+        }
+    }
+
+    return false;
 }

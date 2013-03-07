@@ -35,6 +35,8 @@
 #define MAX_USERS_IN_ROOM   MAX_CONN
 #define BUFFER_SIZE         1024
 #define DFLT_CHATROOM_NAME  "lobby"
+#define ADMIN_NAME          "Admin"     /*  Admin username  */
+#define ADMIN_PASSWORD      "notPassword"   /*  password for admin login */
 
 
 // comment/uncomment DEBUG_* to enable print debugging
@@ -120,6 +122,7 @@ bool reply_user( user_t *user_submitter, char *msg );
 bool get_history( user_t *user_submitter, int num_lines );
 
 // admin command functionality
+bool admin_check(user_t *user_submitter);
 bool chat_all( user_t *user_submitter, char *msg );
 
 bool kick_user( user_t *user_submitter, char *name_to_logout );
