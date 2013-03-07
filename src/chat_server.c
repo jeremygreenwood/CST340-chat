@@ -404,6 +404,7 @@ bool admin_check(user_t *user_submitted )
     {
         // declare variables for use in checking password
         char msg[ sizeof( ADMIN_PASSWORD ) ];
+        char pw[ sizeof( ADMIN_PASSWORD ) ];
         int result;
 
         // prompt for password
@@ -417,12 +418,22 @@ bool admin_check(user_t *user_submitted )
             return false;
         }
 
-        if( strcmp( msg, ADMIN_PASSWORD ) == 0 )
+        // store password into local buffer
+        strncpy( pw, msg, strlen( msg ) - 2 );
+
+        if ( strcmp( pw, ADMIN_PASSWORD) == 0 )
         {
             user_submitted->admin = true;
             write_client ( user_submitted->connection, "\nWelcome Admin!");
 
             return true;
+        }
+        else
+        {
+            write_client ( user_submitted->connection, "\nWrong password!" );
+            user_submitted->logout = true;
+
+            return false;
         }
     }
 
