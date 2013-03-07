@@ -243,10 +243,10 @@ void process_command( user_t *user, int argc, char **argv )
         create_chat_room( user, argv[ 1 ] );
     }
     // XXX next case goes here
-//  else if(  )
-//  {
-//
-//  }
+  else if( strncmp( argv[ 0 ], CMD_LIST_ROOM_USERS, strlen( CMD_LIST_ROOM_USERS ) ) == 0 )
+  {
+      list_chat_room_users( user );
+  }
     else
     {
         // alert the client the command is invalid
@@ -438,4 +438,22 @@ bool admin_check(user_t *user_submitted )
     }
 
     return false;
+}
+
+
+bool list_chat_room_users( user_t *user_submitted )
+{
+    // local variables
+    int i;
+
+    // Iterate through user_thread struct and print all users in same room
+    for( i = 0; i < MAX_CONN; i++ )
+    {
+        if( user_submitted->chat_room == user_thread[ i ].chat_room )
+        {
+            write_client( user_submitted->connection, user_thread[ i ].user_name );
+            write_client( user_submitted->connection, "\n" );
+        }
+    }
+    return true;
 }

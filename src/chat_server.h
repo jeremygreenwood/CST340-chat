@@ -110,7 +110,7 @@ bool create_chat_room( user_t *user_submitter, char *new_name );
 bool join_chat_room( user_t *user_submitter, char *room_name );
 bool leave_chat_room( user_t *user_submitter );
 
-bool list_chat_room_users( user_t *user_submitter, char *room_name );
+bool list_chat_room_users( user_t *user_submitter );
 bool list_all_users( user_t *user_submitter );
 
 bool mute_user( user_t *user_submitter, char *name_to_mute );
