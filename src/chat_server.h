@@ -48,8 +48,12 @@
 #define CMD_CREATE_ROOM     "createchatroom"
 #define CMD_JOIN_ROOM       "joinchatroom"
 #define CMD_LEAVE_ROOM      "leavechatroom"     /* this should be a wrapper to join default chatroom */
+<<<<<<< HEAD
 #define CMD_LIST_ROOM_USERS "list"
 #define CMD_LIST_ALL_USERS  "listall"
+=======
+#define CMD_HISTORY         "history" // get the history for the user's current chatroom
+>>>>>>> f06a0e1bebe2cbfd9c8ebab936582657d2c2b918
 
 // types
 typedef struct user_t
