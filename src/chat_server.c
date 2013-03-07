@@ -243,7 +243,7 @@ void process_command( user_t *user, int argc, char **argv )
             //search for inactive chat room
             for ( i=0; i<MAX_ROOMS; i++ )
             {
-                if(chatrooms[i].user_count < 1 & room_idx == -1)
+                if( chatrooms[i].user_count < 1 && room_idx == -1 )
                 {
                     room_idx = i;
                 }
@@ -263,7 +263,7 @@ void process_command( user_t *user, int argc, char **argv )
                 // put user in room
                 // user.chat_room = &chatrooms[room_idx];
             }
-            else if ( room_idx == MAX_ROOMS )
+            else if( room_idx == MAX_ROOMS )
             {
                 write_client( user->connection, "Cannot create room: max number of rooms reached!\n");
             }
