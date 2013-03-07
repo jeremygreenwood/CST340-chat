@@ -236,42 +236,7 @@ void process_command( user_t *user, int argc, char **argv )
 //  }
     else if( strncmp( argv[ 0 ], CMD_CREATE_ROOM, strlen( CMD_CREATE_ROOM ) ) == 0 )
     {
-        if (argv[ 1 ] != NULL)
-        {
-            int i;
-			int room_idx = -1;
-            //search for inactive chat room
-            for ( i=0; i<MAX_ROOMS; i++ )
-            {
-                if( chatrooms[i].user_count < 1 && room_idx == -1 )
-                {
-                    room_idx = i;
-                }
-                else if( strncmp( chatrooms[i].room_name, argv[ 1 ], MAX_ROOM_NAME_LEN ) == 0 )
-                {
-                    write_client( user->connection, "Cannot create room: room with that name already exists!\n");
-                    i = MAX_ROOMS + 1;
-                    room_idx = i;
-                }
-            }
-            
-            if( room_idx < MAX_ROOMS )
-            {
-                write_client( user->connection, "Creating chat room: %s", argv[ 1 ]);
-                init_chatroom( &chatrooms[room_idx], room_idx, argv[ 1 ] );
-                //chatrooms[room_idx].active = true;
-                // put user in room
-                // user.chat_room = &chatrooms[room_idx];
-            }
-            else if( room_idx == MAX_ROOMS )
-            {
-                write_client( user->connection, "Cannot create room: max number of rooms reached!\n");
-            }
-        }
-        else
-        {
-            write_client( user->connection, "Usage: /createchatroom [chatroomname]\n");
-        }
+        create_chat_room( user, argv[ 1 ] );
     }
     // XXX next case goes here
 //  else if(  )
@@ -386,3 +351,44 @@ void write_chatroom( user_t *user, char *msg, ... )
     }
 }
 
+
+bool create_chat_room( user_t *user_submitter, char *new_name )
+{
+    if (new_name != NULL)
+    {
+        int i;
+        int room_idx = -1;
+        //search for inactive chat room
+        for ( i=0; i<MAX_ROOMS; i++ )
+        {
+            if( chatrooms[i].user_count < 1 && room_idx == -1 )
+            {
+                room_idx = i;
+            }
+            else if( strncmp( chatrooms[i].room_name, new_name, MAX_ROOM_NAME_LEN ) == 0 )
+            {
+                write_client( user_submitter->connection, "Cannot create room: room with that name already exists!\n");
+                i = MAX_ROOMS + 1;
+                room_idx = i;
+            }
+        }
+
+        if( room_idx < MAX_ROOMS )
+        {
+            write_client( user_submitter->connection, "Creating chat room: %s", new_name);
+            //initialize the new chat room
+            init_chatroom( &chatrooms[room_idx], room_idx, new_name );
+            // put user in room
+            //join_chat_room( user_submitter, new_name );
+        }
+        else if( room_idx == MAX_ROOMS )
+        {
+            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached!\n");
+        }
+    }
+    else
+    {
+        write_client( user_submitter->connection, "Usage: /createchatroom <chatroomname>\n");
+    }
+    return true;
+}
