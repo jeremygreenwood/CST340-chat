@@ -29,6 +29,8 @@ int main( int argc, char *argv[] )
 
     init_user_thread();
 
+    memset( &chatrooms, 0, sizeof( chatrooms ) );
+
     // get port number from command line or set to default port
     if( argc == 2 )
     {

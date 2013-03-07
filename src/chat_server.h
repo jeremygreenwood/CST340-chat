@@ -42,14 +42,23 @@
 
 // command IDs
 #define CMD_SIG             "/"
+
 #define CMD_LOGOUT          "logout"
-#define CMD_CHANGE_NAME     "changeusername"
+
 #define CMD_LIST_ROOMS      "listchatrooms"
 #define CMD_CREATE_ROOM     "createchatroom"
 #define CMD_JOIN_ROOM       "joinchatroom"
 #define CMD_LEAVE_ROOM      "leavechatroom"     /* this should be a wrapper to join default chatroom */
+
 #define CMD_LIST_ROOM_USERS "list"
 #define CMD_LIST_ALL_USERS  "listall"
+
+#define CMD_MUTE            "mute"
+#define CMD_UNMUTE          "unmute"
+
+#define CMD_WHISPER         "whisper"
+#define CMD_REPLY           "reply"
+
 #define CMD_HISTORY         "history"           /* get the history for the user's current chatroom */
 
 
@@ -59,7 +68,7 @@ typedef struct user_t
     int                 user_id;
     char                user_name[ MAX_USER_NAME_LEN ];
     struct chat_room_t *chat_room;
-    struct user_t      *reply;                  /* reference to user who whispered to this user */
+    struct user_t      *reply_user;                  /* reference to user who whispered to this user */
     bool                admin;
     int                 connection;
     pthread_t           thread;
@@ -75,7 +84,7 @@ typedef struct chat_room_t
     char           room_name[ MAX_ROOM_NAME_LEN ];
     int            user_count;
     struct user_t *users[ MAX_USERS_IN_ROOM ];
-    char          history[ BUFFER_SIZE ];
+    char           history[ BUFFER_SIZE ];
 } chat_room_t;
 
 
@@ -93,10 +102,32 @@ void init_chatroom( chat_room_t *room, int id, char *name );
 void write_chatroom( user_t *user, char *msg, ... );
 bool chatroom_is_active( chat_room_t *room );
 
-bool create_chat_room( char *name );
-bool join_chat_room( char *name );
-bool list_chat_rooms( void );
-bool leave_chat_room( void );
+// user command functionality
+bool list_chat_rooms( user_t *user_submitter );
+bool create_chat_room( user_t *user_submitter, char *new_name );
+bool join_chat_room( user_t *user_submitter, char *room_name );
+bool leave_chat_room( user_t *user_submitter );
+
+bool list_chat_room_users( user_t *user_submitter, char *room_name );
+bool list_all_users( user_t *user_submitter );
+
+bool mute_user( user_t *user_submitter, char *name_to_mute );
+bool unmute_user( user_t *user_submitter, char *name_to_mute );
+
+bool whisper_user( user_t *user_submitter, char *user_name, char *msg );
+bool reply_user( user_t *user_submitter, char *msg );
+
+bool get_history( user_t *user_submitter, int num_lines );
+
+// admin command functionality
+bool chat_all( user_t *user_submitter, char *msg );
+
+bool kick_user( user_t *user_submitter, char *name_to_logout );
+bool kick_all_users_in_chat_room( user_t *user_submitter, char *name_to_logout );
+
+bool block_user_ip( user_t *user_submitter, char *name_to_block );
+bool unblock_user_ip( user_t *user_submitter, char *name_to_unblock );
+bool list_blocked_users( user_t *user_submitter );
 
 
 
