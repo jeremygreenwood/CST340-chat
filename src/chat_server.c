@@ -243,10 +243,19 @@ void process_command( user_t *user, int argc, char **argv )
         create_chat_room( user, argv[ 1 ] );
     }
     // XXX next case goes here
-  else if( strncmp( argv[ 0 ], CMD_LIST_ROOM_USERS, strlen( CMD_LIST_ROOM_USERS ) ) == 0 )
-  {
-      list_chat_room_users( user );
-  }
+    else if( strncmp( argv[ 0 ], CMD_LIST_ROOM_USERS, strlen( CMD_LIST_ROOM_USERS ) ) == 0 )
+    {
+        list_chat_room_users( user );
+    }
+    else if( strncmp(argv[ 0 ], CMD_LIST_ALL_USERS, strlen( CMD_LIST_ALL_USERS ) ) == 0 )
+    {
+        list_all_users( user );
+    }
+    // XXX next case goes here
+//  else if(  )
+//  {
+//
+//  }
     else
     {
         // alert the client the command is invalid
@@ -455,5 +464,21 @@ bool list_chat_room_users( user_t *user_submitted )
             write_client( user_submitted->connection, "\n" );
         }
     }
+
+    return true;
+}
+
+
+bool list_all_users( user_t *user_submitter )
+{
+    // local variables
+    int i;
+
+    for( i = 0; i < MAX_CONN; i++ )
+    {
+        write_client( user_submitter->connection, user_thread[ i ].user_name );
+        write_client( user_submitter->connection, "\n" );
+    }
+
     return true;
 }
