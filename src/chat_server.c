@@ -85,6 +85,7 @@ int main( int argc, char *argv[] )
                 user_thread[ i ].connection = conn_s;
                 user_thread[ i ].used = true;
                 user_thread[ i ].logout = false;
+                user_thread[ i ].admin = false;
 
                 // spawn new thread
                 pthread_create( &user_thread[ i ].thread, NULL, user_proc, &user_thread[ i ] );
