@@ -45,6 +45,8 @@
 // command IDs
 #define CMD_SIG             "/"
 
+#define CMD_HELP            "help"              /* display a list of all valid commands */
+
 #define CMD_LOGOUT          "logout"
 
 #define CMD_LIST_ROOMS      "listchatrooms"
@@ -100,9 +102,12 @@ void server_error( char *msg );
 void init_user_thread( void );
 void destroy_user_thread( void );
 
+// chatroom helper functions
 void init_chatroom( chat_room_t *room, int id, char *name );
 void write_chatroom( user_t *user, char *msg, ... );
 bool chatroom_is_active( chat_room_t *room );
+bool add_user_to_chatroom( user_t *user, chat_room_t *room );
+bool remove_user_from_chatroom( user_t *user );
 
 // user command functionality
 bool list_chat_rooms( user_t *user_submitter );
