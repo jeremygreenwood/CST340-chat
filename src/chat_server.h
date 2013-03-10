@@ -53,6 +53,7 @@
 #define CMD_CREATE_ROOM     "createchatroom"
 #define CMD_JOIN_ROOM       "joinchatroom"
 #define CMD_LEAVE_ROOM      "leavechatroom"     /* this should be a wrapper to join default chatroom */
+#define CMD_WHERE_AM_I      "whereami"          /* command for user to query which room they are in */
 
 #define CMD_LIST_ROOM_USERS "list"
 #define CMD_LIST_ALL_USERS  "listall"
@@ -114,6 +115,7 @@ bool list_chat_rooms( user_t *user_submitter );
 bool create_chat_room( user_t *user_submitter, char *new_name );
 bool join_chat_room( user_t *user_submitter, char *room_name );
 bool leave_chat_room( user_t *user_submitter );
+void where_am_i( user_t *user_submitter );
 
 bool list_chat_room_users( user_t *user_submitter );
 bool list_all_users( user_t *user_submitter );
