@@ -367,20 +367,20 @@ void write_chatroom( user_t *user, char *msg, ... )
 
 bool create_chat_room( user_t *user_submitter, char *new_name )
 {
-    if (new_name != NULL)
+    if( new_name != NULL )
     {
         int i;
         int room_idx = -1;
         //search for inactive chat room
-        for ( i=0; i<MAX_ROOMS; i++ )
+        for( i = 0; i < MAX_ROOMS; i++ )
         {
-            if( chatrooms[i].user_count < 1 && room_idx == -1 )
+            if( chatrooms[ i ].user_count < 1 && room_idx == -1 )
             {
                 room_idx = i;
             }
-            else if( strncmp( chatrooms[i].room_name, new_name, MAX_ROOM_NAME_LEN ) == 0 )
+            else if( strncmp( chatrooms[ i ].room_name, new_name, MAX_ROOM_NAME_LEN ) == 0 )
             {
-                write_client( user_submitter->connection, "Cannot create room: room with that name already exists!\n");
+                write_client( user_submitter->connection, "Cannot create room: room with that name already exists!\n" );
                 i = MAX_ROOMS + 1;
                 room_idx = i;
             }
@@ -388,26 +388,26 @@ bool create_chat_room( user_t *user_submitter, char *new_name )
 
         if( room_idx < MAX_ROOMS )
         {
-            write_client( user_submitter->connection, "Creating chat room: %s", new_name);
+            write_client( user_submitter->connection, "Creating chat room: %s", new_name );
             //initialize the new chat room
-            init_chatroom( &chatrooms[room_idx], room_idx, new_name );
+            init_chatroom( &chatrooms[ room_idx ], room_idx, new_name );
             // put user in room
             //join_chat_room( user_submitter, new_name );
         }
         else if( room_idx == MAX_ROOMS )
         {
-            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached!\n");
+            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached!\n" );
         }
     }
     else
     {
-        write_client( user_submitter->connection, "Usage: /createchatroom <chatroomname>\n");
+        write_client( user_submitter->connection, "Usage: /createchatroom <chatroomname>\n" );
     }
     return true;
 }
 
 
-bool admin_check(user_t *user_submitted )
+bool admin_check( user_t *user_submitted )
 {
     if( strcmp( user_submitted->user_name, ADMIN_NAME ) == 0 )
     {
@@ -417,7 +417,7 @@ bool admin_check(user_t *user_submitted )
         int result;
 
         // prompt for password
-        write_client ( user_submitted->connection, "\nEnter password: " );
+        write_client( user_submitted->connection, "\nEnter password: " );
 
         result = read_client( user_submitted->connection, msg );
 
@@ -430,16 +430,16 @@ bool admin_check(user_t *user_submitted )
         // store password into local buffer
         strncpy( pw, msg, strlen( msg ) - 2 );
 
-        if ( strcmp( pw, ADMIN_PASSWORD) == 0 )
+        if( strcmp( pw, ADMIN_PASSWORD ) == 0 )
         {
             user_submitted->admin = true;
-            write_client ( user_submitted->connection, "\nWelcome Admin!");
+            write_client( user_submitted->connection, "\nWelcome Admin!" );
 
             return true;
         }
         else
         {
-            write_client ( user_submitted->connection, "\nWrong password!" );
+            write_client( user_submitted->connection, "\nWrong password!" );
             user_submitted->logout = true;
 
             return false;

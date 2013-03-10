@@ -35,8 +35,8 @@
 #define MAX_USERS_IN_ROOM   MAX_CONN
 #define BUFFER_SIZE         1024
 #define DFLT_CHATROOM_NAME  "lobby"
-#define ADMIN_NAME          "Admin"     /*  Admin username  */
-#define ADMIN_PASSWORD      "notPassword"   /*  password for admin login */
+#define ADMIN_NAME          "Admin"             /*  Admin username  */
+#define ADMIN_PASSWORD      "notPassword"       /*  password for admin login */
 
 
 // comment/uncomment DEBUG_* to enable print debugging
