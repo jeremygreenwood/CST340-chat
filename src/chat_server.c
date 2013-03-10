@@ -86,6 +86,7 @@ int main( int argc, char *argv[] )
                 user_thread[ i ].used = true;
                 user_thread[ i ].logout = false;
                 user_thread[ i ].admin = false;
+                user_thread[ i ].login_failure = false;
 
                 // spawn new thread
                 pthread_create( &user_thread[ i ].thread, NULL, user_proc, &user_thread[ i ] );
@@ -125,24 +126,26 @@ void *user_proc( void *arg )
 
     get_username( this_thread );
 
-    // set user's chatroom to lobby (default chatroom)
-    if( this_thread->logout == false )
-        add_user_to_chatroom( this_thread, &lobby );
-
-    // main loop to receive and process client messages
-    while( this_thread->logout == false )
+    if( this_thread->login_failure == false )
     {
-        result = read_client( conn_s, msg );
+        // set user's chatroom to lobby (default chatroom)
+        if( this_thread->logout == false )
+            add_user_to_chatroom( this_thread, &lobby );
 
-        if( result == CONN_ERR )
-            break;
+        // main loop to receive and process client messages
+        while( this_thread->logout == false )
+        {
+            result = read_client( conn_s, msg );
 
-        process_client_msg( this_thread, msg );
+            if( result == CONN_ERR )
+                break;
+
+            process_client_msg( this_thread, msg );
+        }
+
+        printf( "%s on thread %d disconnected. \n", this_thread->user_name , this_thread->user_id );
+        write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
     }
-
-    printf( "%s on thread %d disconnected. \n", this_thread->user_name , this_thread->user_id );
-
-    write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
 
     // close the connection
     result = close( conn_s );
@@ -308,6 +311,7 @@ void get_username( user_t *user )
     if( result == CONN_ERR )
     {
         user->logout = true;
+        user->login_failure = true;
         return;
     }
 
@@ -430,6 +434,8 @@ bool admin_check( user_t *user_submitted )
         if( result == CONN_ERR )
         {
             user_submitted->logout = true;
+            user_submitted->login_failure = true;
+
             return false;
         }
 
@@ -444,6 +450,7 @@ bool admin_check( user_t *user_submitted )
         {
             write_client( user_submitted->connection, "\nWrong password! \n" );
             user_submitted->logout = true;
+            user_submitted->login_failure = true;
 
             return false;
         }
