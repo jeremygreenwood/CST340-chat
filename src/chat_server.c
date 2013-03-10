@@ -208,6 +208,10 @@ void process_command( user_t *user, int argc, char **argv )
     {
         user->logout = true;
     }
+    else if( strncmp(argv[ 0 ], CMD_LIST_ROOMS, strlen( CMD_LIST_ROOMS ) ) == 0 )
+    {
+        list_chat_rooms( user );
+    }
     else if( strncmp( argv[ 0 ], CMD_JOIN_ROOM, strlen( CMD_JOIN_ROOM ) ) == 0 )
     {
         join_chat_room( user, argv[ 1 ] );
@@ -376,6 +380,33 @@ void write_chatroom( user_t *user, char *msg, ... )
 }
 
 
+bool list_chat_rooms( user_t *user_submitter )
+{
+    int     i;
+    bool    active_rooms_found = false;
+
+    write_client( user_submitter->connection, "active chatrooms: \n" );
+
+    //search for active chat rooms to print to user_submitter
+    for( i = 0; i < MAX_ROOMS; i++ )
+    {
+        printf( "%d", chatrooms[ i ].user_count );
+
+        if( chatroom_is_active( &chatrooms[ i ] ) )
+        {
+            write_client( user_submitter->connection, "\t%s \n", chatrooms[ i ].room_name );
+            active_rooms_found = true;
+            printf( "%s", chatrooms[ i ].room_name );
+        }
+    }
+
+    if( active_rooms_found == false )
+        write_client( user_submitter->connection, "\tno results to display \n" );
+
+    return true;
+}
+
+
 bool create_chat_room( user_t *user_submitter, char *new_name )
 {
     if( new_name != NULL )
@@ -494,7 +525,7 @@ bool list_all_users( user_t *user_submitter )
 
 bool chatroom_is_active( chat_room_t *room )
 {
-    return room->user_count == 0 ? true : false;
+    return room->user_count != 0 ? true : false;
 }
 
 
@@ -512,6 +543,8 @@ bool remove_user_from_chatroom( user_t *user )
         {
             // announce to the room this user is leaving
             write_chatroom( user, "%s left the chatroom. \n", user->user_name );
+
+            user->chat_room->user_count--;
 
             user->chat_room->users[ i ] = NULL;
             user->chat_room = NULL;
