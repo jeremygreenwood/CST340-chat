@@ -102,6 +102,7 @@ void write_all_clients( char *msg, ... );
 void server_error( char *msg );
 void init_user_thread( void );
 void destroy_user_thread( void );
+void get_username( user_t *user );
 
 // chatroom helper functions
 void init_chatroom( chat_room_t *room, int id, char *name );

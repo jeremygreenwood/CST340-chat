@@ -123,29 +123,7 @@ void *user_proc( void *arg )
 
     conn_s = this_thread->connection;
 
-    // TODO create a get_username helper function()
-
-    // prompt and save client's username
-    write_client( conn_s, "\nEnter username: " );
-
-    result = read_client( conn_s, msg );
-
-    if( result == CONN_ERR )
-    {
-        this_thread->logout = true;
-    }
-    else
-    {
-        // set username and respond to client
-        strncpy( this_thread->user_name, msg, strlen( msg ) - 2 );
-
-        // check username for admin
-        admin_check( this_thread );
-
-        write_client( conn_s, "\nConnected to chat server.  You are logged in as %s.\n", this_thread->user_name );
-
-        printf( "%s is running on thread %d.\n", this_thread->user_name, this_thread->user_id );
-    }
+    get_username( this_thread );
 
     // set user's chatroom to lobby (default chatroom)
     if( this_thread->logout == false )
@@ -203,9 +181,6 @@ int get_command( char *msg, char **argv )
 
     if( strncmp( msg, CMD_SIG, strlen( CMD_SIG ) ) )
         return 0;
-
-    // remove carriage return and newline from message
-    msg[ strlen( msg ) - 2 ] = '\0';
 
     argv[ num_args ] = strtok( msg + strlen( CMD_SIG ), " " );
 
@@ -284,7 +259,7 @@ void write_all_clients( char *msg, ... )
             sem_wait( &user_thread[ i ].write_mutex );
 
             // send chat message to active client (including client who sent message)
-            write_client( user_thread[ i ].connection, full_msg );
+            write_client( user_thread[ i ].connection, "%s \n", full_msg );
 
             sem_post( &user_thread[ i ].write_mutex );
         }
@@ -317,6 +292,37 @@ void destroy_user_thread( void )
 
     for( i = 0; i < MAX_CONN; i++ )
         sem_destroy( &user_thread[ i ].write_mutex );
+}
+
+
+void get_username( user_t *user )
+{
+    int         result;
+    char        msg[ MAX_LINE ];
+
+    // prompt and save client's username
+    write_client( user->connection, "\nEnter username: " );
+
+    result = read_client( user->connection, msg );
+
+    if( result == CONN_ERR )
+    {
+        user->logout = true;
+        return;
+    }
+
+    // set username and respond to client
+    strncpy( user->user_name, msg, strlen( msg ) );
+
+    // check username for admin
+    admin_check( user );
+
+    if( user->logout == true )
+        return;
+
+    write_client( user->connection, "\nConnected to chat server.  You are logged in as %s. \n", user->user_name );
+
+    printf( "%s is running on thread %d.\n", user->user_name, user->user_id );
 }
 
 
@@ -358,7 +364,7 @@ void write_chatroom( user_t *user, char *msg, ... )
             sem_wait( &user->chat_room->users[ i ]->write_mutex );
 
             // send message to user in chatroom (including user who sent message)
-            write_client( user->chat_room->users[ i ]->connection, full_msg );
+            write_client( user->chat_room->users[ i ]->connection, "%s \n", full_msg );
 
             sem_post( &user->chat_room->users[ i ]->write_mutex );
         }
@@ -381,7 +387,7 @@ bool create_chat_room( user_t *user_submitter, char *new_name )
             }
             else if( strncmp( chatrooms[ i ].room_name, new_name, MAX_ROOM_NAME_LEN ) == 0 )
             {
-                write_client( user_submitter->connection, "Cannot create room: room with that name already exists!\n" );
+                write_client( user_submitter->connection, "Cannot create room: room with that name already exists! \n" );
                 i = MAX_ROOMS + 1;
                 room_idx = i;
             }
@@ -397,12 +403,12 @@ bool create_chat_room( user_t *user_submitter, char *new_name )
         }
         else if( room_idx == MAX_ROOMS )
         {
-            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached!\n" );
+            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached! \n" );
         }
     }
     else
     {
-        write_client( user_submitter->connection, "Usage: /createchatroom <chatroomname>\n" );
+        write_client( user_submitter->connection, "Usage: /createchatroom <chatroomname> \n" );
     }
     return true;
 }
@@ -410,13 +416,12 @@ bool create_chat_room( user_t *user_submitter, char *new_name )
 
 bool admin_check( user_t *user_submitted )
 {
+    // declare variables for use in checking password
+    char    msg[ sizeof( ADMIN_PASSWORD ) ];
+    int     result;
+
     if( strcmp( user_submitted->user_name, ADMIN_NAME ) == 0 )
     {
-        // declare variables for use in checking password
-        char msg[ sizeof( ADMIN_PASSWORD ) ];
-        char pw[ sizeof( ADMIN_PASSWORD ) ];
-        int result;
-
         // prompt for password
         write_client( user_submitted->connection, "\nEnter password: " );
 
@@ -428,19 +433,16 @@ bool admin_check( user_t *user_submitted )
             return false;
         }
 
-        // store password into local buffer
-        strncpy( pw, msg, strlen( msg ) - 2 );
-
-        if( strcmp( pw, ADMIN_PASSWORD ) == 0 )
+        if( strcmp( msg, ADMIN_PASSWORD ) == 0 )
         {
             user_submitted->admin = true;
-            write_client( user_submitted->connection, "\nWelcome Admin!" );
+            write_client( user_submitted->connection, "\nWelcome Admin! \n" );
 
             return true;
         }
         else
         {
-            write_client( user_submitted->connection, "\nWrong password!" );
+            write_client( user_submitted->connection, "\nWrong password! \n" );
             user_submitted->logout = true;
 
             return false;
@@ -461,8 +463,7 @@ bool list_chat_room_users( user_t *user_submitted )
     {
         if( user_submitted->chat_room == user_thread[ i ].chat_room )
         {
-            write_client( user_submitted->connection, user_thread[ i ].user_name );
-            write_client( user_submitted->connection, "\n" );
+            write_client( user_submitted->connection, "%s \n", user_thread[ i ].user_name );
         }
     }
 
@@ -477,8 +478,7 @@ bool list_all_users( user_t *user_submitter )
 
     for( i = 0; i < MAX_CONN; i++ )
     {
-        write_client( user_submitter->connection, user_thread[ i ].user_name );
-        write_client( user_submitter->connection, "\n" );
+        write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
     }
 
     return true;
@@ -521,7 +521,6 @@ bool add_user_to_chatroom( user_t *user, chat_room_t *room )
 {
     int i;
 
-    // add user to chatroom's user* array and increment user_count
     for( i = 0; i < MAX_USERS_IN_ROOM; i++ )
     {
         if( room->users[ i ] == NULL )
@@ -532,6 +531,7 @@ bool add_user_to_chatroom( user_t *user, chat_room_t *room )
             // set user's chatroom
             user->chat_room = room;
 
+            // add user to chatroom's user* array and increment user_count
             user->chat_room->users[ i ] = user;
             user->chat_room->user_count++;
 
