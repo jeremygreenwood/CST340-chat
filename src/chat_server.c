@@ -220,6 +220,10 @@ void process_command( user_t *user, int argc, char **argv )
     {
         create_chat_room( user, argv[ 1 ] );
     }
+    else if( strncmp( argv[ 0 ], CMD_LEAVE_ROOM, strlen( CMD_LEAVE_ROOM ) ) == 0 )
+    {
+        leave_chat_room( user );
+    }
     else if( strncmp( argv[ 0 ], CMD_WHERE_AM_I, strlen( CMD_WHERE_AM_I ) ) == 0 )
     {
         where_am_i( user );
@@ -617,6 +621,16 @@ bool join_chat_room( user_t *user_submitter, char *room_name )
     write_client( user_submitter->connection, "Chatroom %s does not exist. \n", room_name );
 
     return false;
+}
+
+
+bool leave_chat_room( user_t *user_submitter )
+{
+    remove_user_from_chatroom( user_submitter );
+
+    add_user_to_chatroom( user_submitter, &lobby );
+
+    return true;
 }
 
 
