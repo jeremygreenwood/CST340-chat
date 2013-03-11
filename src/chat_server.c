@@ -308,19 +308,36 @@ void destroy_user_thread( void )
 
 void get_username( user_t *user )
 {
+    int         i;
     int         result;
     char        msg[ MAX_LINE ];
+    bool        try_again = true;
 
-    // prompt and save client's username
-    write_client( user->connection, "\nEnter username: " );
-
-    result = read_client( user->connection, msg );
-
-    if( result == CONN_ERR )
+    while( try_again == true )
     {
-        user->logout = true;
-        user->login_failure = true;
-        return;
+        try_again = false;
+
+        // prompt and save client's username
+        write_client( user->connection, "\nEnter username: " );
+
+        result = read_client( user->connection, msg );
+
+        if( result == CONN_ERR )
+        {
+            user->logout = true;
+            user->login_failure = true;
+            return;
+        }
+
+        // verify username is not already in use
+        for( i = 0; i < MAX_CONN; i++ )
+        {
+            if( user_thread[ i ].used && strcmp( user_thread[ i ].user_name, msg ) == 0 )
+            {
+                write_client( user->connection, "username %s is already in use, please try again. \n", msg );
+                try_again = true;
+            }
+        }
     }
 
     // set username and respond to client
