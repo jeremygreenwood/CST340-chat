@@ -119,7 +119,8 @@ int add_user_to_chatroom( user_t *user, chat_room_t *room );
 int remove_user_from_chatroom( user_t *user );
 
 // ********** COMMANDS *************
-// Note: when returning FAILURE status, usage statement will be printed
+// Note: when returning DISPLAY_USAGE status, usage statement will be printed by process_command() function
+
 // user command functionality
 int help( user_t *user_submitter, int argc, char **argv );
 
