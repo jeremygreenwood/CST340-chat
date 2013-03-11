@@ -121,6 +121,8 @@ int remove_user_from_chatroom( user_t *user );
 // ********** COMMANDS *************
 // Note: when returning FAILURE status, usage statement will be printed
 // user command functionality
+int help( user_t *user_submitter, int argc, char **argv );
+
 int logout( user_t *user_submitter, int argc, char **argv );
 
 int list_chat_rooms( user_t *user_submitter, int argc, char **argv );
@@ -161,6 +163,7 @@ typedef struct command_t
 
 command_t   commands[] =
 {
+    { CMD_HELP,             help,                       "[command]"                     },
     { CMD_LOGOUT,           logout,                     ""                              },
     { CMD_LIST_ROOMS,       list_chat_rooms,            ""                              },
     { CMD_CREATE_ROOM,      create_chat_room,           "<chatroomname>"                },

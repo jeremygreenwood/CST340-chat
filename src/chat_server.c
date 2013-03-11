@@ -474,6 +474,47 @@ int add_user_to_chatroom( user_t *user, chat_room_t *room )
 
 // ********** COMMANDS *************
 
+int help( user_t *user_submitter, int argc, char **argv )
+{
+    int     i;
+    int     num_commands = sizeof( commands ) / sizeof( command_t );
+
+    switch( argc )
+    {
+    case 1:
+        write_client( user_submitter->connection, "available commands: \n" );
+
+        for( i = 0; i < num_commands; i++ )
+        {
+            write_client( user_submitter->connection, "\t%s \n", commands[ i ].command_string );
+        }
+
+        return SUCCESS;
+
+    case 2:
+        for( i = 0; i < num_commands; i++ )
+        {
+            if( strcmp( commands[ i ].command_string, argv[ 1 ] ) == 0 )
+            {
+                write_client( user_submitter->connection, "Usage: %s%s %s \n", CMD_SIG, argv[ 1 ], commands[ i ].command_parameter_usage );
+                break;
+            }
+        }
+
+        // catch unknown commands
+        if( i == num_commands )
+        {
+            write_client( user_submitter->connection, "Invalid command: %s \n", argv[ 1 ] );
+
+            return FAILURE;
+        }
+        else
+            return SUCCESS;
+    }
+
+    return DISPLAY_USAGE;
+}
+
 int logout( user_t *user_submitter, int argc, char **argv )
 {
     user_submitter->logout = true;
