@@ -25,11 +25,16 @@
 
 
 // constants
+#define SUCCESS             0
+#define FAILURE             ( -1 )
+#define DISPLAY_USAGE       ( -2 )
 #define MAX_ROOMS           5
 #define MAX_CONN            10
 #define ECHO_PORT           3456
 #define MAX_ARGS            16
 #define MAX_ARG_LEN         64
+#define MAX_CMD_STR_LEN     32
+#define MAX_CMD_USAGE_LEN   512
 #define MAX_USER_NAME_LEN   32
 #define MAX_ROOM_NAME_LEN   32
 #define MAX_USERS_IN_ROOM   MAX_CONN
@@ -104,43 +109,65 @@ void server_error( char *msg );
 void init_user_thread( void );
 void destroy_user_thread( void );
 void get_username( user_t *user );
+bool admin_check( user_t *user_submitter );
 
 // chatroom helper functions
 void init_chatroom( chat_room_t *room, int id, char *name );
 void write_chatroom( user_t *user, char *msg, ... );
 bool chatroom_is_active( chat_room_t *room );
-bool add_user_to_chatroom( user_t *user, chat_room_t *room );
-bool remove_user_from_chatroom( user_t *user );
+int add_user_to_chatroom( user_t *user, chat_room_t *room );
+int remove_user_from_chatroom( user_t *user );
 
+// ********** COMMANDS *************
+// Note: when returning FAILURE status, usage statement will be printed
 // user command functionality
-bool list_chat_rooms( user_t *user_submitter );
-bool create_chat_room( user_t *user_submitter, char *new_name );
-bool join_chat_room( user_t *user_submitter, char *room_name );
-bool leave_chat_room( user_t *user_submitter );
-void where_am_i( user_t *user_submitter );
+int logout( user_t *user_submitter, int argc, char **argv );
 
-bool list_chat_room_users( user_t *user_submitter );
-bool list_all_users( user_t *user_submitter );
+int list_chat_rooms( user_t *user_submitter, int argc, char **argv );
+int create_chat_room( user_t *user_submitter, int argc, char **argv );
+int join_chat_room( user_t *user_submitter, int argc, char **argv );
+int leave_chat_room( user_t *user_submitter, int argc, char **argv );
+int where_am_i( user_t *user_submitter, int argc, char **argv );
 
-bool mute_user( user_t *user_submitter, char *name_to_mute );
-bool unmute_user( user_t *user_submitter, char *name_to_mute );
+int list_chat_room_users( user_t *user_submitter, int argc, char **argv );
+int list_all_users( user_t *user_submitter, int argc, char **argv );
 
-bool whisper_user( user_t *user_submitter, char *user_name, char *msg );
-bool reply_user( user_t *user_submitter, char *msg );
+int mute_user( user_t *user_submitter, int argc, char **argv );
+int unmute_user( user_t *user_submitter, int argc, char **argv );
 
-bool get_history( user_t *user_submitter, int num_lines );
+int whisper_user( user_t *user_submitter, int argc, char **argv );
+int reply_user( user_t *user_submitter, int argc, char **argv );
+
+int get_history( user_t *user_submitter, int argc, char **argv );
 
 // admin command functionality
-bool admin_check(user_t *user_submitter);
-bool chat_all( user_t *user_submitter, char *msg );
+int chat_all( user_t *user_submitter, int argc, char **argv );
 
-bool kick_user( user_t *user_submitter, char *name_to_logout );
-bool kick_all_users_in_chat_room( user_t *user_submitter, char *name_to_logout );
+int kick_user( user_t *user_submitter, int argc, char **argv );
+int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv );
 
-bool block_user_ip( user_t *user_submitter, char *name_to_block );
-bool unblock_user_ip( user_t *user_submitter, char *name_to_unblock );
-bool list_blocked_users( user_t *user_submitter );
+int block_user_ip( user_t *user_submitter, int argc, char **argv );
+int unblock_user_ip( user_t *user_submitter, int argc, char **argv );
+int list_blocked_users( user_t *user_submitter, int argc, char **argv );
 
+
+typedef struct command_t
+{
+    char        command_string[ MAX_CMD_STR_LEN ];
+    int         (*command_function) ( user_t *user, int argc, char **argv );
+    char        command_parameter_usage[ MAX_CMD_USAGE_LEN ];
+} command_t;
+
+
+command_t   commands[] =
+{
+    { CMD_LOGOUT,           logout,                     ""                              },
+    { CMD_LIST_ROOMS,       list_chat_rooms,            ""                              },
+    { CMD_CREATE_ROOM,      create_chat_room,           "<chatroomname>"                },
+    { CMD_JOIN_ROOM,        join_chat_room,             "<chatroomname>"                },
+    { CMD_LEAVE_ROOM,       leave_chat_room,            ""                              },
+    { CMD_WHERE_AM_I,       where_am_i,                 ""                              },
+};
 
 
 #endif /* CHAT_SERVER_H_ */
