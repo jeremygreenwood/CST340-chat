@@ -28,6 +28,7 @@
 #define SUCCESS             0
 #define FAILURE             ( -1 )
 #define DISPLAY_USAGE       ( -2 )
+#define NOT_ADMIN           ( -3 )
 #define MAX_ROOMS           5
 #define MAX_CONN            10
 #define ECHO_PORT           3456
@@ -70,6 +71,13 @@
 #define CMD_REPLY           "reply"
 
 #define CMD_HISTORY         "history"           /* get the history for the user's current chatroom */
+
+#define CMD_KICK            "kick"
+#define CMD_KICK_ALL        "kickall"
+
+#define CMD_BLOCK           "block"
+#define CMD_UNBLOCK         "unblock"
+#define CMD_LISTBLOCK       "listblock"
 
 
 // types

@@ -365,6 +365,11 @@ bool admin_check( user_t *user_submitted )
     return false;
 }
 
+bool isAnAdmin(user_t *user_submitter)
+{
+    return user_submitter->admin;
+}
+
 void init_chatroom( chat_room_t *room, int id, char *name )
 {
     int i;
@@ -518,6 +523,88 @@ int help( user_t *user_submitter, int argc, char **argv )
 int logout( user_t *user_submitter, int argc, char **argv )
 {
     user_submitter->logout = true;
+
+    return SUCCESS;
+}
+
+int kick_user( user_t *user_submitter, int argc, char **argv )
+{
+    int i;
+    int result = FAILURE;
+    char *user_name = argv[1];
+
+    // Validate the user_submitter is an admin
+    if(!isAnAdmin(user_submitter))
+    {
+        return NOT_ADMIN;
+    }
+
+    // verify a room name was provided
+    if (user_name == NULL ) {
+        return DISPLAY_USAGE;
+    }
+
+    // iterate through all users to find the one targeted for kick
+    for (i = 0; i < MAX_CONN; i++) {
+        if (strcmp(user_thread[i].user_name, user_name) == 0) {
+            // Call logout command on the targeted user
+            result = logout(user_thread[i]);
+            if(result == SUCCESS)
+            {
+                write_client(user_submitter->connection, "User %s was kicked. \n", user_name);
+            }
+        }
+    }
+
+    // send message to user_submitter and return targeted user was not found
+    write_client(user_submitter->connection, "Could not find %s. \n", user_name);
+
+    return result;
+}
+
+int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv )
+{
+    int i;
+    int result = FAILURE;
+    char *room_name = argv[1];
+    chat_room_t *room = NULL;
+
+    // Validate the user_submitter is an admin
+    if(!isAnAdmin(user_submitter))
+    {
+        return NOT_ADMIN;
+    }
+
+    // verify a room name was provided
+    if (room_name == NULL ) {
+        return DISPLAY_USAGE;
+    }
+
+    // iterate through all chatrooms to check if chatroom with room_name exists
+    for (i = 0; i < MAX_ROOMS; i++) {
+        if (strcmp(chatrooms[i].room_name, room_name) == 0) {
+            room = chatrooms[i];
+            break;
+        }
+    }
+
+    // Could not find the room
+    if(room == NULL)
+    {
+        write_client( user_submitter->connection, "Chatroom %s does not exist. \n", room_name );
+        return FAILURE;
+    }
+
+    // Run the logout command on each user one by one
+    for (i = 0; i < room->user_count; i++) {
+        if (room->users[i] != NULL ) {
+            result = logout(room->users[i]);
+            if (result == SUCCESS) {
+                write_client(user_submitter->connection,
+                        "User %s was kicked. \n", room->users[i]->user_name);
+            }
+        }
+    }
 
     return SUCCESS;
 }
@@ -721,4 +808,10 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
     return FAILURE;
 }
 
+int block_user_ip( user_t *user_submitter, int argc, char **argv )
+{
+    return FAILURE;
+}
 
+//int unblock_user_ip( user_t *user_submitter, int argc, char **argv );
+//int list_blocked_users( user_t *user_submitter, int argc, char **argv );
