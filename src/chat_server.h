@@ -171,6 +171,8 @@ command_t   commands[] =
     { CMD_JOIN_ROOM,        join_chat_room,             "<chatroomname>"                },
     { CMD_LEAVE_ROOM,       leave_chat_room,            ""                              },
     { CMD_WHERE_AM_I,       where_am_i,                 ""                              },
+    { CMD_WHISPER,          whisper_user,               "<user> <message>"              },
+    { CMD_REPLY,            reply_user,                 "<message>"                     },
 };
 
 

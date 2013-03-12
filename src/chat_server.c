@@ -573,7 +573,13 @@ int create_chat_room( user_t *user_submitter, int argc, char **argv )
             }
         }
 
-        if( room_idx < MAX_ROOMS )
+        if( room_idx == -1 )
+        {
+            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached! \n" );
+
+            return FAILURE;
+        }
+        else if( room_idx < MAX_ROOMS )
         {
             write_client( user_submitter->connection, "Creating chatroom: %s. \n", new_name );
 
@@ -582,12 +588,6 @@ int create_chat_room( user_t *user_submitter, int argc, char **argv )
 
             // put user in room
             join_chat_room( user_submitter, argc, argv );
-        }
-        else if( room_idx == MAX_ROOMS )
-        {
-            write_client( user_submitter->connection, "Cannot create room: max number of rooms reached! \n" );
-
-            return FAILURE;
         }
     }
     else
@@ -676,5 +676,14 @@ int list_all_users( user_t *user_submitter, int argc, char **argv )
     return SUCCESS;
 }
 
+int whisper_user( user_t *user_submitter, int argc, char **argv )
+{
+    return SUCCESS;
+}
+
+int reply_user( user_t *user_submitter, int argc, char **argv )
+{
+    return SUCCESS;
+}
 
 
