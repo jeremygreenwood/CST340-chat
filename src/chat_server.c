@@ -15,6 +15,19 @@ user_t user_thread[ MAX_CONN ];/* pthread/user struct array*/
 chat_room_t chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
 chat_room_t lobby;
 
+bool isLoggedIn(char *username); /* forward declaration */
+
+// String Case-Insensitive Comparison courtesy of
+// http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
+int strcicmp(char const *a, char const *b)
+{
+    for (;; a++, b++) {
+        int d = tolower(*a) - tolower(*b);
+        if (d != 0 || !*a)
+            return d;
+    }
+}
+
 int main( int argc, char *argv[ ] )
 {
     int                 i;          /* user_thread index        */
@@ -212,7 +225,7 @@ void process_command( user_t *user, int argc, char **argv )
 
     for( i = 0; i < num_commands; i++ )
     {
-        if( strcmp( argv[ 0 ], commands[ i ].command_string ) == 0 )
+        if( strcicmp( argv[ 0 ], commands[ i ].command_string ) == 0 )
         {
             // execute desired command
             ret_val = commands[ i ].command_function( user, argc, argv );
@@ -416,16 +429,16 @@ void write_chatroom( user_t *user, char *msg, ... )
         }
 
     }
-    
+
     // Write the message to the next available line of chatroom's history
     sem_wait( &user->chat_room->history_mutex );
         int j; /* for loop counter */
-        for (j = 0; j < MAX_LINE; j++ )  
-        {  
+        for (j = 0; j < MAX_LINE; j++ )
+        {
             user->chat_room->history[user->chat_room->history_count][j] = '\0';
         }
 		time_t ltime;           /* calendar time */
-		ltime = time(NULL);     
+		ltime = time(NULL);
 		char timestamp[15];     /* buffer for timestamp string */
 		strftime(timestamp, 15, "%a %I:%M %p", localtime(&ltime)); /* populate timestamp string */
 		sprintf(user->chat_room->history[user->chat_room->history_count], "[%s] %s", timestamp, full_msg);
@@ -630,13 +643,14 @@ int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv )
         write_client( user_submitter->connection, "Chatroom %s does not exist. \n", room_name );
         return FAILURE;
     }
-
+    struct user_t *current_user;
     // Run the logout command on each user one by one
     for( i = 0; i < room->user_count; i++ )
     {
         if( room->users[ i ] != NULL )
         {
-            result = logout( &room->users[ i ], argc, argv );
+            current_user = room->users[i];
+            result = logout( current_user, argc, argv );
             if( result == SUCCESS )
             {
                 write_client( user_submitter->connection, "User %s was kicked. \n", room->users[ i ]->user_name );
@@ -861,6 +875,25 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
 
     write_client( user_submitter->connection, "Cannot send message: no user has whispered you. \n");
     return FAILURE;
+}
+
+int mute_user( user_t *user_submitter, int argc, char **argv )
+{
+    char str1[] = "Amy";
+    char str2[] = "amy";
+    if ( 0 == strcicmp(str1, str2) )
+    {
+        write_client( user_submitter->connection, "string compareworked");
+
+    }
+    write_client( user_submitter->connection, "Can't mute. Note yet implemented \n" );
+    return FAILURE;
+}
+
+bool isLoggedIn(char *username)
+{
+    //stub function always returns true, for now
+    return true;
 }
 
 int block_user_ip( user_t *user_submitter, int argc, char **argv )
