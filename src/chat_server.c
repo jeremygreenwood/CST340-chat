@@ -814,36 +814,53 @@ int list_all_users( user_t *user_submitter, int argc, char **argv )
 
 int whisper_user( user_t *user_submitter, int argc, char **argv )
 {
-    int i;
-    char *target_user_name = argv[ 1 ];
-    char *message = argv[ 2 ];
+    int     i;
+    char   *target_user_name = argv[ 1 ];
+    char   *message[BUFFER_SIZE];
 
-    if( argc != 3 )
+    if ( argc < 3 )
     {
         return DISPLAY_USAGE;
     }
 
+    strcpy( message, argv[ 2 ] );
+
+    for ( i = 3; i < argc; i++ )
+    {
+        strcat( message, " " );
+        strcat( message, argv[i] );
+    }
+
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if( strcmp( target_user_name, user_thread[ i ].user_name ) == 0 )
+        if( strcmp( target_user_name, user_thread[i].user_name ) == 0 )
         {
-            write_client( user_thread[ i ].connection, "(%s: %s) \n", user_submitter->user_name, message );
-            user_thread[ i ].reply_user = user_submitter;
+            write_client( user_thread[i].connection, "(%s: %s) \n", user_submitter->user_name, message );
+            user_thread[i].reply_user = user_submitter;
             return SUCCESS;
         }
     }
 
-    write_client( user_submitter->connection, "Cannot send message: no user with the specified user name found. \n" );
+    write_client( user_submitter->connection, "Cannot send message: no user with the specified user name found. \n");
     return FAILURE;
 }
 
 int reply_user( user_t *user_submitter, int argc, char **argv )
 {
-    char* message = argv[ 1 ];
+    int     i;
+    char   *message[BUFFER_SIZE];
 
-    if( argc != 2 )
+    if ( argc < 2 )
     {
         return DISPLAY_USAGE;
+    }
+
+    strcpy( message, argv[ 1 ] );
+
+    for ( i = 2; i < argc; i++ )
+    {
+        strcat( message, " " );
+        strcat( message, argv[i] );
     }
 
     if( user_submitter->reply_user != NULL )
@@ -853,7 +870,7 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
         return SUCCESS;
     }
 
-    write_client( user_submitter->connection, "Cannot send message: no user has whispered you. \n" );
+    write_client( user_submitter->connection, "Cannot send message: no user has whispered you. \n");
     return FAILURE;
 }
 
