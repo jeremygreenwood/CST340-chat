@@ -1,41 +1,40 @@
 /*===========================================================================
  Filename    : chat_server.c
  Authors     : Jeremy Greenwood <jeremy.greenwood@oit.edu>
-             :
+ :
  Course      : CST 340
  Assignment  : 6
  Description : Collaborative multi-threaded chat server. Project located at
-               https://github.com/jeremygreenwood/CST340-chat
-===========================================================================*/
+ https://github.com/jeremygreenwood/CST340-chat
+ ===========================================================================*/
 
 #include "chat_server.h"
 
-
 // global variables
-user_t          user_thread[ MAX_CONN ];/* pthread/user struct array*/
-chat_room_t     chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
-chat_room_t     lobby;
+user_t user_thread[ MAX_CONN ];/* pthread/user struct array*/
+chat_room_t chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
+chat_room_t lobby;
 
-
-int main( int argc, char *argv[] )
+int main( int argc, char *argv[ ] )
 {
-    int         i;                      /* user_thread index        */
-    int         res;                    /* temporary result         */
-    int         list_s;                 /* listening socket         */
-    int         conn_s;                 /* connection socket        */
-    short int   port;                   /* port number              */
-    struct      sockaddr_in servaddr;   /* socket address structure */
-    char       *endptr;                 /* for strtol()             */
+    int                 i;          /* user_thread index        */
+    int                 res;        /* temporary result         */
+    int                 list_s;     /* listening socket         */
+    int                 conn_s;     /* connection socket        */
+    short int           port;       /* port number              */
+    struct sockaddr_in  servaddr;   /* socket address structure */
+    char               *endptr;     /* for strtol()             */
+    struct sockaddr_in  client_addr;
+    socklen_t           c_len = sizeof( client_addr );
 
     init_user_thread();
 
     memset( &chatrooms, 0, sizeof( chatrooms ) );
 
-
     // get port number from command line or set to default port
     if( argc == 2 )
     {
-        port = strtol(argv[1], &endptr, 0);
+        port = strtol( argv[ 1 ], &endptr, 0 );
         if( *endptr )
             server_error( "Invalid port number" );
     }
@@ -53,9 +52,9 @@ int main( int argc, char *argv[] )
 
     // initialize socket address structure
     memset( &servaddr, 0, sizeof( servaddr ) );
-    servaddr.sin_family      = AF_INET;
+    servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl( INADDR_ANY );
-    servaddr.sin_port        = htons( port );
+    servaddr.sin_port = htons( port );
 
     //  bind socket address to listening socket
     res = bind( list_s, (struct sockaddr *) &servaddr, sizeof( servaddr ) );
@@ -72,9 +71,12 @@ int main( int argc, char *argv[] )
     while( 1 )
     {
         // wait for connection
-        conn_s = accept( list_s, NULL, NULL );
+        conn_s = accept( list_s, (struct sockaddr*)&client_addr, &c_len );
         if( conn_s < 0 )
             server_error( "Error calling accept()" );
+
+        printf( "client_addr: %d \n", client_addr.sin_addr.s_addr );
+        printf( "client_addr: %s \n", inet_ntoa( client_addr.sin_addr ) );
 
         // search for available thread
         for( i = 0; i < MAX_CONN; i++ )
@@ -82,6 +84,7 @@ int main( int argc, char *argv[] )
             if( user_thread[ i ].used == false )
             {
                 // found an available thread
+                user_thread[ i ].user_ip_addr = client_addr.sin_addr.s_addr;
                 user_thread[ i ].user_id = i;
                 user_thread[ i ].connection = conn_s;
                 user_thread[ i ].used = true;
@@ -113,10 +116,10 @@ int main( int argc, char *argv[] )
 
 void *user_proc( void *arg )
 {
-    int         result;
-    int         conn_s;
-    char        msg[ MAX_LINE ];      /*  character buffer          */
-    user_t     *this_thread;
+    int result;
+    int conn_s;
+    char msg[ MAX_LINE ]; /*  character buffer          */
+    user_t *this_thread;
 
     this_thread = (user_t *)arg;
 
@@ -140,10 +143,13 @@ void *user_proc( void *arg )
             if( result == CONN_ERR )
                 break;
 
+            // deep copy msg to this_thread
+            strcpy( this_thread->user_msg, msg );
+
             process_client_msg( this_thread, msg );
         }
 
-        printf( "%s on thread %d disconnected. \n", this_thread->user_name , this_thread->user_id );
+        printf( "%s on thread %d disconnected. \n", this_thread->user_name, this_thread->user_id );
         write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
     }
 
@@ -155,13 +161,13 @@ void *user_proc( void *arg )
     remove_user_from_chatroom( this_thread );
     this_thread->used = false;
 
-    return NULL;
+    return NULL ;
 }
 
 void process_client_msg( user_t *user, char *chat_msg )
 {
-    int     num_args;
-    char   *arg_array[ MAX_ARGS ];
+    int num_args;
+    char *arg_array[ MAX_ARGS ];
 
     num_args = get_command( chat_msg, arg_array );
 
@@ -197,12 +203,12 @@ void process_command( user_t *user, int argc, char **argv )
     int j;
     printf( "argc: %d \n", argc );
     for( j = 0; j < argc; j++ )
-        printf( "argv[ %d ]: <<< %s >>>\n", j, argv[ j ] );
+    printf( "argv[ %d ]: <<< %s >>>\n", j, argv[ j ] );
 #endif
 
-    int     i;
-    int     ret_val;
-    int     num_commands = sizeof( commands ) / sizeof( command_t );
+    int i;
+    int ret_val;
+    int num_commands = sizeof( commands ) / sizeof(command_t);
 
     for( i = 0; i < num_commands; i++ )
     {
@@ -229,9 +235,9 @@ void process_command( user_t *user, int argc, char **argv )
 // write to all clients with locking performed
 void write_all_clients( char *msg, ... )
 {
-    int         i;                      /* user_thread index        */
-    char        full_msg[ MAX_LINE ];   /* constructed message      */
-    va_list     ap;
+    int i; /* user_thread index        */
+    char full_msg[ MAX_LINE ]; /* constructed message      */
+    va_list ap;
 
     va_start( ap, msg );
     vsprintf( full_msg, msg, ap );
@@ -261,7 +267,7 @@ void server_error( char *msg )
 
 void init_user_thread( void )
 {
-    int         i;                      /* user_thread index           */
+    int i; /* user_thread index           */
 
     memset( &user_thread, 0, sizeof( user_thread ) );
 
@@ -271,7 +277,7 @@ void init_user_thread( void )
 
 void destroy_user_thread( void )
 {
-    int         i;                      /* user_thread index           */
+    int i; /* user_thread index           */
 
     for( i = 0; i < MAX_CONN; i++ )
         sem_destroy( &user_thread[ i ].write_mutex );
@@ -279,10 +285,10 @@ void destroy_user_thread( void )
 
 void get_username( user_t *user )
 {
-    int         i;
-    int         result;
-    char        msg[ MAX_LINE ];
-    bool        try_again = true;
+    int i;
+    int result;
+    char msg[ MAX_LINE ];
+    bool try_again = true;
 
     while( try_again == true )
     {
@@ -328,8 +334,8 @@ void get_username( user_t *user )
 bool admin_check( user_t *user_submitted )
 {
     // declare variables for use in checking password
-    char    msg[ sizeof( ADMIN_PASSWORD ) ];
-    int     result;
+    char msg[ sizeof( ADMIN_PASSWORD ) ];
+    int result;
 
     if( strcmp( user_submitted->user_name, ADMIN_NAME ) == 0 )
     {
@@ -366,7 +372,7 @@ bool admin_check( user_t *user_submitted )
     return false;
 }
 
-bool isAnAdmin(user_t *user_submitter)
+bool isAnAdmin( user_t *user_submitter )
 {
     return user_submitter->admin;
 }
@@ -380,14 +386,14 @@ void init_chatroom( chat_room_t *room, int id, char *name )
     room->user_count = 0;
     for( i = 0; i < MAX_USERS_IN_ROOM; i++ )
         room->users[ i ] = NULL;
-    sem_init( &room->history_mutex, 0 , 1 );
+    sem_init( &room->history_mutex, 0, 1 );
 }
 
 void write_chatroom( user_t *user, char *msg, ... )
 {
-    int         i;                      /* user_thread index        */
-    char        full_msg[ MAX_LINE ];   /* constructed message      */
-    va_list     ap;
+    int i; /* user_thread index        */
+    char full_msg[ MAX_LINE ]; /* constructed message      */
+    va_list ap;
 
     va_start( ap, msg );
     vsprintf( full_msg, msg, ap );
@@ -399,11 +405,7 @@ void write_chatroom( user_t *user, char *msg, ... )
         // check that each user in the chatroom is used before sending message
         if( user->chat_room->users[ i ] != NULL && user->chat_room->users[ i ]->used == true )
         {
-            printf(
-                    "writing to %s on thread %d\n",
-                    user->chat_room->users[ i ]->user_name,
-                    user->chat_room->users[ i ]->user_id
-                  );
+            printf( "writing to %s on thread %d\n", user->chat_room->users[ i ]->user_name, user->chat_room->users[ i ]->user_id );
 
             sem_wait( &user->chat_room->users[ i ]->write_mutex );
 
@@ -416,30 +418,30 @@ void write_chatroom( user_t *user, char *msg, ... )
     }
     // Write the message to the next available line of chatroom's history
     sem_wait( &user->chat_room->history_mutex );
-        int j; /* for loop counter */
-        for (j = 0; j < MAX_LINE; j++ )
-        {
-            user->chat_room->history[user->chat_room->history_count][j] = '\0';
-        }
+    int j; /* for loop counter */
+    for( j = 0; j < MAX_LINE; j++ )
+    {
+        user->chat_room->history[ user->chat_room->history_count ][ j ] = '\0';
+    }
 
-        // I'm not smart enough to use vsprintf to format my line, so
-        // instead we will manually pop a newline onto the last char in history
-        j = 0;
-        while (( j < MAX_LINE )&&( '\0' != full_msg[j]))
-        {
-            user->chat_room->history[user->chat_room->history_count][j] = full_msg[j];
-            j++;
-        }
-        if ( j < MAX_LINE - 1 )
-        {
-            user->chat_room->history[user->chat_room->history_count][j] = '\n';
-        }
-        else
-        {
-            user->chat_room->history[user->chat_room->history_count][MAX_LINE - 1] = '\n';
-            user->chat_room->history[user->chat_room->history_count][MAX_LINE - 1] = '\0';
-        }
-        user->chat_room->history_count = (user->chat_room->history_count + 1) % HISTORY_SIZE;
+    // I'm not smart enough to use vsprintf to format my line, so
+    // instead we will manually pop a newline onto the last char in history
+    j = 0;
+    while( ( j < MAX_LINE ) && ( '\0' != full_msg[ j ] ) )
+    {
+        user->chat_room->history[ user->chat_room->history_count ][ j ] = full_msg[ j ];
+        j++;
+    }
+    if( j < MAX_LINE - 1 )
+    {
+        user->chat_room->history[ user->chat_room->history_count ][ j ] = '\n';
+    }
+    else
+    {
+        user->chat_room->history[ user->chat_room->history_count ][ MAX_LINE - 1 ] = '\n';
+        user->chat_room->history[ user->chat_room->history_count ][ MAX_LINE - 1 ] = '\0';
+    }
+    user->chat_room->history_count = ( user->chat_room->history_count + 1 ) % HISTORY_SIZE;
 
     sem_post( &user->chat_room->history_mutex );
 }
@@ -476,9 +478,9 @@ int remove_user_from_chatroom( user_t *user )
         }
     }
 
-    if ( room_pointer->user_count == 0 )
+    if( room_pointer->user_count == 0 )
     {
-        sem_destroy(&room_pointer->history_mutex);
+        sem_destroy( &room_pointer->history_mutex );
     }
 
     return SUCCESS;
@@ -519,8 +521,8 @@ int add_user_to_chatroom( user_t *user, chat_room_t *room )
 
 int help( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
-    int     num_commands = sizeof( commands ) / sizeof( command_t );
+    int i;
+    int num_commands = sizeof( commands ) / sizeof(command_t);
 
     switch( argc )
     {
@@ -569,34 +571,37 @@ int kick_user( user_t *user_submitter, int argc, char **argv )
 {
     int i;
     int result = FAILURE;
-    char *user_name = argv[1];
+    char *user_name = argv[ 1 ];
 
     // Validate the user_submitter is an admin
-    if(!isAnAdmin(user_submitter))
+    if( !isAnAdmin( user_submitter ) )
     {
         return NOT_ADMIN;
     }
 
     // verify a room name was provided
-    if (user_name == NULL ) {
+    if( user_name == NULL )
+    {
         return DISPLAY_USAGE;
     }
 
     // iterate through all users to find the one targeted for kick
-    for (i = 0; i < MAX_CONN; i++) {
-        if (strcmp(user_thread[i].user_name, user_name) == 0) {
+    for( i = 0; i < MAX_CONN; i++ )
+    {
+        if( strcmp( user_thread[ i ].user_name, user_name ) == 0 )
+        {
             // Call logout command on the targeted user
-            result = logout(&user_thread[i], argc, argv);
+            result = logout( &user_thread[ i ], argc, argv );
 
-            if(result == SUCCESS)
+            if( result == SUCCESS )
             {
-                write_client(user_submitter->connection, "User %s was kicked. \n", user_name);
+                write_client( user_submitter->connection, "User %s was kicked. \n", user_name );
             }
         }
     }
 
     // send message to user_submitter and return targeted user was not found
-    write_client(user_submitter->connection, "Could not find %s. \n", user_name);
+    write_client( user_submitter->connection, "Could not find %s. \n", user_name );
 
     return result;
 }
@@ -605,42 +610,47 @@ int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv )
 {
     int i;
     int result = FAILURE;
-    char *room_name = argv[1];
+    char *room_name = argv[ 1 ];
     chat_room_t *room = NULL;
 
     // Validate the user_submitter is an admin
-    if(!isAnAdmin(user_submitter))
+    if( !isAnAdmin( user_submitter ) )
     {
         return NOT_ADMIN;
     }
 
     // verify a room name was provided
-    if (room_name == NULL ) {
+    if( room_name == NULL )
+    {
         return DISPLAY_USAGE;
     }
 
     // iterate through all chatrooms to check if chatroom with room_name exists
-    for (i = 0; i < MAX_ROOMS; i++) {
-        if (strcmp(chatrooms[i].room_name, room_name) == 0) {
-            room = &chatrooms[i];
+    for( i = 0; i < MAX_ROOMS; i++ )
+    {
+        if( strcmp( chatrooms[ i ].room_name, room_name ) == 0 )
+        {
+            room = &chatrooms[ i ];
             break;
         }
     }
 
     // Could not find the room
-    if(room == NULL)
+    if( room == NULL )
     {
         write_client( user_submitter->connection, "Chatroom %s does not exist. \n", room_name );
         return FAILURE;
     }
 
     // Run the logout command on each user one by one
-    for (i = 0; i < room->user_count; i++) {
-        if (room->users[i] != NULL ) {
-            result = logout(&room->users[i], argc, argv);
-            if (result == SUCCESS) {
-                write_client(user_submitter->connection,
-                        "User %s was kicked. \n", room->users[i]->user_name);
+    for( i = 0; i < room->user_count; i++ )
+    {
+        if( room->users[ i ] != NULL )
+        {
+            result = logout( &room->users[ i ], argc, argv );
+            if( result == SUCCESS )
+            {
+                write_client( user_submitter->connection, "User %s was kicked. \n", room->users[ i ]->user_name );
             }
         }
     }
@@ -650,8 +660,8 @@ int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv )
 
 int list_chat_rooms( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
-    bool    active_rooms_found = false;
+    int i;
+    bool active_rooms_found = false;
 
     write_client( user_submitter->connection, "active chatrooms: \n" );
 
@@ -676,9 +686,9 @@ int list_chat_rooms( user_t *user_submitter, int argc, char **argv )
 
 int create_chat_room( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
-    int     room_idx = -1;
-    char   *new_name = argv[ 1 ];
+    int i;
+    int room_idx = -1;
+    char *new_name = argv[ 1 ];
 
     if( new_name != NULL )
     {
@@ -726,8 +736,8 @@ int create_chat_room( user_t *user_submitter, int argc, char **argv )
 
 int join_chat_room( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
-    char   *room_name = argv[ 1 ];
+    int i;
+    char *room_name = argv[ 1 ];
 
     // verify a room name was provided
     if( room_name == NULL )
@@ -762,7 +772,7 @@ int leave_chat_room( user_t *user_submitter, int argc, char **argv )
     if( ret_val == FAILURE )
         return ret_val;
 
-    ret_val =  add_user_to_chatroom( user_submitter, &lobby );
+    ret_val = add_user_to_chatroom( user_submitter, &lobby );
 
     return ret_val;
 }
@@ -804,46 +814,46 @@ int list_all_users( user_t *user_submitter, int argc, char **argv )
 
 int whisper_user( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
-    char   *target_user_name = argv[ 1 ];
-    char   *message = argv[ 2 ];
+    int i;
+    char *target_user_name = argv[ 1 ];
+    char *message = argv[ 2 ];
 
-    if (argc != 3)
+    if( argc != 3 )
     {
         return DISPLAY_USAGE;
     }
 
-    for( i = 0; i < MAX_CONN; i++)
+    for( i = 0; i < MAX_CONN; i++ )
     {
-        if( strcmp( target_user_name, user_thread[i].user_name ) == 0 )
+        if( strcmp( target_user_name, user_thread[ i ].user_name ) == 0 )
         {
-            write_client( user_thread[i].connection, "(%s: %s) \n", user_submitter->user_name, message );
-            user_thread[i].reply_user = user_submitter;
+            write_client( user_thread[ i ].connection, "(%s: %s) \n", user_submitter->user_name, message );
+            user_thread[ i ].reply_user = user_submitter;
             return SUCCESS;
         }
     }
 
-    write_client( user_submitter->connection, "Cannot send message: no user with the specified user name found. \n");
+    write_client( user_submitter->connection, "Cannot send message: no user with the specified user name found. \n" );
     return FAILURE;
 }
 
 int reply_user( user_t *user_submitter, int argc, char **argv )
 {
-    char*   message = argv[ 1 ];
+    char* message = argv[ 1 ];
 
-    if (argc != 2)
+    if( argc != 2 )
     {
         return DISPLAY_USAGE;
     }
 
-    if(user_submitter->reply_user != NULL)
+    if( user_submitter->reply_user != NULL )
     {
         write_client( user_submitter->reply_user->connection, "(%s: %s) \n", user_submitter->user_name, message );
         user_submitter->reply_user->reply_user = user_submitter;
         return SUCCESS;
     }
 
-    write_client( user_submitter->connection, "Cannot send message: no user has whispered you. \n");
+    write_client( user_submitter->connection, "Cannot send message: no user has whispered you. \n" );
     return FAILURE;
 }
 
@@ -861,48 +871,47 @@ int get_history( user_t *user_submitter, int argc, char **argv )
     struct chat_room_t *user_room = user_submitter->chat_room;
 
     // Make sure the user has a valid room first
-    if ( NULL == user_room )
+    if( NULL == user_room )
     {
         return FAILURE;
     }
 
-
-    if ( argc == 1 )
+    if( argc == 1 )
     {
         // If they didn't specify, they get all the history.
-        write_client( user_submitter->connection, "--- Chatroom History --- \n");
+        write_client( user_submitter->connection, "--- Chatroom History --- \n" );
         line_num = user_room->history_count;
-        for ( i = 0; i < HISTORY_SIZE ; i++ )
+        for( i = 0; i < HISTORY_SIZE; i++ )
         {
 
-            if ( '\0' != user_room->history[line_num][0] )
+            if( '\0' != user_room->history[ line_num ][ 0 ] )
             {
                 write_client( user_submitter->connection, "(CH) " );
-                write_client( user_submitter->connection, user_room->history[line_num]);
+                write_client( user_submitter->connection, user_room->history[ line_num ] );
             }
 
-            line_num = (line_num + 1) % HISTORY_SIZE;
+            line_num = ( line_num + 1 ) % HISTORY_SIZE;
         }
 
     }
     else
     {
-        char header[80];
-        strcpy(header,"--- Chatroom History ( last ");
-        strcat(header, argv[1]);
-        strcat(header, " lines) --- \n");
-        write_client( user_submitter->connection, header);
-        line_num = user_room->history_count - atoi(argv[1]);
-        for ( i = 0; i < atoi(argv[1]) ; i++ )
+        char header[ 80 ];
+        strcpy( header, "--- Chatroom History ( last " );
+        strcat( header, argv[ 1 ] );
+        strcat( header, " lines) --- \n" );
+        write_client( user_submitter->connection, header );
+        line_num = user_room->history_count - atoi( argv[ 1 ] );
+        for( i = 0; i < atoi( argv[ 1 ] ); i++ )
         {
 
-            if ( '\0' != user_room->history[line_num][0] )
+            if( '\0' != user_room->history[ line_num ][ 0 ] )
             {
                 write_client( user_submitter->connection, "(CH) " );
-                write_client( user_submitter->connection, user_room->history[line_num]);
+                write_client( user_submitter->connection, user_room->history[ line_num ] );
             }
 
-            line_num = (line_num + 1) % HISTORY_SIZE;
+            line_num = ( line_num + 1 ) % HISTORY_SIZE;
         }
     }
     return SUCCESS;

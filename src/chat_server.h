@@ -95,6 +95,8 @@ typedef struct user_t
     bool                used;
     bool                logout;
     sem_t               write_mutex;
+    char                user_msg[ BUFFER_SIZE ];    /* last message sent from this user */
+    uint32_t            user_ip_addr;
 } user_t;
 
 
@@ -181,10 +183,14 @@ command_t   commands[] =
     { CMD_CREATE_ROOM,      create_chat_room,           "<chatroomname>"                },
     { CMD_JOIN_ROOM,        join_chat_room,             "<chatroomname>"                },
     { CMD_LEAVE_ROOM,       leave_chat_room,            ""                              },
+    { CMD_LIST_ROOM_USERS,  list_chat_room_users,       ""                              },
+    { CMD_LIST_ALL_USERS,   list_all_users,             ""                              },
     { CMD_WHERE_AM_I,       where_am_i,                 ""                              },
     { CMD_WHISPER,          whisper_user,               "<user> <message>"              },
     { CMD_REPLY,            reply_user,                 "<message>"                     },
     { CMD_HISTORY,          get_history,                "<lines>"                       },
+    { CMD_KICK,             kick_user,                  "<user>"                        },
+    { CMD_KICK_ALL,         kick_all_users_in_chat_room,""                              },
 };
 
 
