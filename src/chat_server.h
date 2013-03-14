@@ -39,7 +39,8 @@
 #define MAX_USER_NAME_LEN   32
 #define MAX_ROOM_NAME_LEN   32
 #define MAX_USERS_IN_ROOM   MAX_CONN
-#define BUFFER_SIZE         1024
+#define HISTORY_SIZE        50                  /* max lines of history */
+#define BUFFER_SIZE         1024                /* max length of message */
 #define DFLT_CHATROOM_NAME  "lobby"
 #define ADMIN_NAME          "Admin"             /*  Admin username  */
 #define ADMIN_PASSWORD      "notPassword"       /*  password for admin login */
@@ -103,7 +104,9 @@ typedef struct chat_room_t
     char           room_name[ MAX_ROOM_NAME_LEN ];
     int            user_count;
     struct user_t *users[ MAX_USERS_IN_ROOM ];
-    char           history[ BUFFER_SIZE ];
+    char           history[HISTORY_SIZE][MAX_LINE];
+    sem_t          history_mutex;  /* For avoiding history collisions */
+    int            history_count;  /* Points to next available history line */
 } chat_room_t;
 
 
@@ -181,6 +184,7 @@ command_t   commands[] =
     { CMD_WHERE_AM_I,       where_am_i,                 ""                              },
     { CMD_WHISPER,          whisper_user,               "<user> <message>"              },
     { CMD_REPLY,            reply_user,                 "<message>"                     },
+    { CMD_HISTORY,          get_history,                "<lines>"                       },
 };
 
 
