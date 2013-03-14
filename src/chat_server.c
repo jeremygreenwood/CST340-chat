@@ -416,32 +416,21 @@ void write_chatroom( user_t *user, char *msg, ... )
         }
 
     }
+    
     // Write the message to the next available line of chatroom's history
     sem_wait( &user->chat_room->history_mutex );
-    int j; /* for loop counter */
-    for( j = 0; j < MAX_LINE; j++ )
-    {
-        user->chat_room->history[ user->chat_room->history_count ][ j ] = '\0';
-    }
+        int j; /* for loop counter */
+        for (j = 0; j < MAX_LINE; j++ )  
+        {  
+            user->chat_room->history[user->chat_room->history_count][j] = '\0';
+        }
+		time_t ltime;           /* calendar time */
+		ltime = time(NULL);     
+		char timestamp[15];     /* buffer for timestamp string */
+		strftime(timestamp, 15, "%a %I:%M %p", localtime(&ltime)); /* populate timestamp string */
+		sprintf(user->chat_room->history[user->chat_room->history_count], "[%s] %s", timestamp, full_msg);
 
-    // I'm not smart enough to use vsprintf to format my line, so
-    // instead we will manually pop a newline onto the last char in history
-    j = 0;
-    while( ( j < MAX_LINE ) && ( '\0' != full_msg[ j ] ) )
-    {
-        user->chat_room->history[ user->chat_room->history_count ][ j ] = full_msg[ j ];
-        j++;
-    }
-    if( j < MAX_LINE - 1 )
-    {
-        user->chat_room->history[ user->chat_room->history_count ][ j ] = '\n';
-    }
-    else
-    {
-        user->chat_room->history[ user->chat_room->history_count ][ MAX_LINE - 1 ] = '\n';
-        user->chat_room->history[ user->chat_room->history_count ][ MAX_LINE - 1 ] = '\0';
-    }
-    user->chat_room->history_count = ( user->chat_room->history_count + 1 ) % HISTORY_SIZE;
+        user->chat_room->history_count = (user->chat_room->history_count + 1) % HISTORY_SIZE;
 
     sem_post( &user->chat_room->history_mutex );
 }
@@ -888,47 +877,59 @@ int get_history( user_t *user_submitter, int argc, char **argv )
     struct chat_room_t *user_room = user_submitter->chat_room;
 
     // Make sure the user has a valid room first
-    if( NULL == user_room )
+    if ( NULL == user_room )
     {
         return FAILURE;
     }
 
-    if( argc == 1 )
+
+    if ( argc == 1 )
     {
         // If they didn't specify, they get all the history.
-        write_client( user_submitter->connection, "--- Chatroom History --- \n" );
+        write_client( user_submitter->connection, "--- Chatroom History --- \n");
         line_num = user_room->history_count;
-        for( i = 0; i < HISTORY_SIZE; i++ )
+        for ( i = 0; i < HISTORY_SIZE ; i++ )
         {
 
-            if( '\0' != user_room->history[ line_num ][ 0 ] )
+            if ( '\0' != user_room->history[line_num][0] )
             {
-                write_client( user_submitter->connection, "(CH) " );
-                write_client( user_submitter->connection, user_room->history[ line_num ] );
+                write_client( user_submitter->connection, "%s \n",user_room->history[line_num]);
             }
 
-            line_num = ( line_num + 1 ) % HISTORY_SIZE;
+            line_num = (line_num + 1) % HISTORY_SIZE;
         }
 
     }
     else
     {
-        char header[ 80 ];
-        strcpy( header, "--- Chatroom History ( last " );
-        strcat( header, argv[ 1 ] );
-        strcat( header, " lines) --- \n" );
-        write_client( user_submitter->connection, header );
-        line_num = user_room->history_count - atoi( argv[ 1 ] );
-        for( i = 0; i < atoi( argv[ 1 ] ); i++ )
+        char header[80];
+		int total_lines = atoi(argv[1]);
+		if (total_lines > HISTORY_SIZE)
+		    total_lines = HISTORY_SIZE;
+
+		sprintf(header, "%s %d %s \n","--- Chatroom History ( last ", total_lines, " lines) ---");
+
+        write_client( user_submitter->connection, header);
+		//line_num = ( total_lines + HISTORY_SIZE - user_room->history_count) % HISTORY_SIZE;
+		line_num = (user_room->history_count - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+        i = 0;
+		while ((line_num != user_room->history_count)&&( i < total_lines ))
+		{
+		    if ('\0' != user_room->history[line_num][0] )
+			    i++;
+			line_num = (line_num - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+		}
+		line_num = (line_num + 1 + HISTORY_SIZE) % HISTORY_SIZE;
+        while ((line_num != user_room->history_count)&&( i > 0 ))
         {
 
-            if( '\0' != user_room->history[ line_num ][ 0 ] )
+            if ( '\0' != user_room->history[line_num][0] )
             {
-                write_client( user_submitter->connection, "(CH) " );
-                write_client( user_submitter->connection, user_room->history[ line_num ] );
+                write_client( user_submitter->connection, "%s \n",user_room->history[line_num]);
+				i--;
             }
 
-            line_num = ( line_num + 1 ) % HISTORY_SIZE;
+            line_num = (line_num + 1) % HISTORY_SIZE;
         }
     }
     return SUCCESS;

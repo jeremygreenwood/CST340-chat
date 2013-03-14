@@ -21,6 +21,7 @@
 #include <unistd.h>         /*  misc. UNIX functions      */
 #include <pthread.h>
 #include <semaphore.h>
+#include <time.h>           /*  time functions            */
 #include "helper.h"         /*  our own helper functions  */
 
 
