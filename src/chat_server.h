@@ -89,7 +89,7 @@ typedef struct user_t
     char                user_name[ MAX_USER_NAME_LEN ];
     struct chat_room_t *chat_room;
     struct user_t      *reply_user;                 /* reference to user who whispered to this user    */
-    struct user_t      *muted_users[ MAX_CONN ];    /* reference to list of users muted by this user   */
+    char                muted_users[ MAX_CONN ][ MAX_USER_NAME_LEN ];    /* users muted by this user   */
     bool                admin;
     bool                login_failure;              /* signifies an invalid password was used to logon */
     int                 connection;
