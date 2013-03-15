@@ -419,16 +419,19 @@ void write_chatroom( user_t *user, char *msg, ... )
         // check that each user in the chatroom is used before sending message
         if( user->chat_room->users[ i ] != NULL && user->chat_room->users[ i ]->used == true )
         {
-            printf( "writing to %s on thread %d\n", user->chat_room->users[ i ]->user_name, user->chat_room->users[ i ]->user_id );
+            // Filter out unwanted messages from ignore list
+            if ( (!isIgnoringUser(user->chat_room->users[i], user ))&&(!isIgnoringUser(user, user->chat_room->users[i])))
+            {
+                printf( "writing to %s on thread %d\n", user->chat_room->users[ i ]->user_name, user->chat_room->users[ i ]->user_id );
 
-            sem_wait( &user->chat_room->users[ i ]->write_mutex );
+                sem_wait( &user->chat_room->users[ i ]->write_mutex );
 
-            // send message to user in chatroom (including user who sent message)
-            write_client( user->chat_room->users[ i ]->connection, "%s \n", full_msg );
+                // send message to user in chatroom (including user who sent message)
+                write_client( user->chat_room->users[ i ]->connection, "%s \n", full_msg );
 
-            sem_post( &user->chat_room->users[ i ]->write_mutex );
+                sem_post( &user->chat_room->users[ i ]->write_mutex );
+            }
         }
-
     }
 
     // Write the message to the next available line of chatroom's history
