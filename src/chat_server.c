@@ -1,7 +1,7 @@
 /*===========================================================================
  Filename    : chat_server.c
  Authors     : Jeremy Greenwood <jeremy.greenwood@oit.edu>
- :
+             : Joshua Durkee    <joshua.durkee@oit.edu>
  Course      : CST 340
  Assignment  : 6
  Description : Collaborative multi-threaded chat server. Project located at
@@ -821,19 +821,42 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
     int     i;
     char   *target_user_name = argv[ 1 ];
     char   *message[BUFFER_SIZE];
+    char   *temp;
+    char   *temp2[BUFFER_SIZE];             //Needed because we're getting rid of 2 words.  Some message corruption can occur without this.
 
     if ( argc < 3 )
     {
         return DISPLAY_USAGE;
     }
 
-    strcpy( message, argv[ 2 ] );
+    //Old method of forming whisper message
+    //Appends each argument onto the message
+    //Crashes if there are too many words, because tokenizer only allows MAX_ARGS arguments
+
+    /*strcpy( message, argv[ 2 ] );
 
     for ( i = 3; i < argc; i++ )
     {
         strcat( message, " " );
         strcat( message, argv[i] );
+    }*/
+
+    //New method of forming whisper message
+    //Uses pre-tokenized message copied in user_submitter
+    //takes off the first two words (command and target)
+
+    temp = strchr( user_submitter->user_msg, ' ' );
+    if( temp != NULL)
+    {
+        strncpy( temp2, temp + 1, BUFFER_SIZE );
     }
+    temp = strchr( temp2, ' ' );
+    if( temp != NULL)
+    {
+        strncpy( message, temp + 1, BUFFER_SIZE );
+    }
+
+    //Find target user and send message
 
     for( i = 0; i < MAX_CONN; i++ )
     {
@@ -851,21 +874,38 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
 
 int reply_user( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
+    //int     i;                        //Used in old message forming method
     char   *message[BUFFER_SIZE];
+    char   *temp;
 
     if ( argc < 2 )
     {
         return DISPLAY_USAGE;
     }
 
-    strcpy( message, argv[ 1 ] );
+    //Old method of forming whisper message
+    //Appendsz each argument onto the message
+    //Crashes if there are too many words, because tokenizer only allows MAX_ARGS arguments
+
+    /*strcpy( message, argv[ 1 ] );
 
     for ( i = 2; i < argc; i++ )
     {
         strcat( message, " " );
         strcat( message, argv[i] );
+    }*/
+
+    //New method of forming whisper message
+    //Uses pre-tokenized message copied in user_submitter
+    //takes off the first word (command)
+
+    temp = strchr( user_submitter->user_msg, ' ' );
+    if( temp != NULL)
+    {
+        strncpy( message, temp + 1, BUFFER_SIZE );
     }
+
+    //Send message
 
     if( user_submitter->reply_user != NULL )
     {
