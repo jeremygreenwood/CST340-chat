@@ -809,11 +809,30 @@ int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
 
 int list_all_users( user_t *user_submitter, int argc, char **argv )
 {
+    bool first_line = true;
     int i;
 
     for( i = 0; i < MAX_CONN; i++ )
     {
-        write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
+        if ( true == user_thread[i].used)
+        {
+            if ( true == first_line )
+            {
+                first_line = false;
+                write_client( user_submitter->connection, "--- All Online Users --- \n" );
+            }
+            if ( isIgnoringUser( user_submitter, &user_thread[i] ) )
+            {
+                write_client( user_submitter->connection, "%s\t (ignored) \n", user_thread[ i ].user_name );
+            }
+            else
+            {
+                if ( isIgnoringUser(&user_thread[i], user_submitter) )
+                    write_client( user_submitter->connection, "%s\t (ignoring you) \n", user_thread[ i ].user_name );
+                else
+                    write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
+            }
+        }
     }
 
     return SUCCESS;
@@ -830,6 +849,22 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
         return DISPLAY_USAGE;
     }
 
+    // Fail if target user is not logged in
+    user_t *whisper_target = NULL;
+    if ( !isLoggedIn(argv[1], &whisper_target))
+    {
+        write_client( user_submitter->connection, "Cannot send message. %s is not logged in. \n", argv[1]);
+        return FAILURE;
+    }
+
+    // Fail if target user is being ignored
+    if (( NULL != whisper_target)&&( isIgnoringUser(user_submitter, whisper_target)))
+    {
+        write_client( user_submitter->connection, "Cannot send message. You are ignoring %s. \n", argv[1]);
+        return FAILURE;
+    }
+
+
     strcpy( message, argv[ 2 ] );
 
     for ( i = 3; i < argc; i++ )
@@ -840,10 +875,14 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
 
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if( strcmp( target_user_name, user_thread[i].user_name ) == 0 )
+        if( strcicmp( target_user_name, user_thread[i].user_name ) == 0 )
         {
-            write_client( user_thread[i].connection, "(%s: %s) \n", user_submitter->user_name, message );
-            user_thread[i].reply_user = user_submitter;
+            // Suceed but don't actually send message if target is ignoring user
+            if ( !isIgnoringUser( &user_thread[i], user_submitter) )
+            {
+                write_client( user_thread[i].connection, "(%s: %s) \n", user_submitter->user_name, message );
+                user_thread[i].reply_user = user_submitter;
+            }
             return SUCCESS;
         }
     }
