@@ -878,6 +878,25 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
     return FAILURE;
 }
 
+/***********************************************************************
+* mute_user - Add a given user to the current user's mute list
+*
+* parameters:
+*   user_submitter - pointer to a user_t containing the current user
+*   argc           - int containing # of arguments to the command
+*   argv           - vector containing remaining string arguments
+*
+* returns: An int indicating varius error states:
+*    DISPLAY_USAGE : wrong number of parameters given (must be 1 or 2)
+*    FAILURE: can't add the specified user to the mute list
+*    SUCCESS: target user was added to user_submitter's mute list
+*
+* The function will return FAILURE if the target user is not logged in,
+* or the user has tried to mute herself, or the user attempts to mute
+* someone that is already muted, or there is no room left in the mute
+* list for the user_submitter
+*
+***********************************************************************/
 int mute_user( user_t *user_submitter, int argc, char **argv )
 {
     int i;                              /* loop counter */
@@ -1001,12 +1020,10 @@ bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored)
 
     bool user_found_in_mute_list = false;
     int i;
-//    while ((!user_found_in_mute_list)&&(i < MAX_CONN))
     for ( i = 0; i < MAX_CONN; i++ )
     {
         if (user_ignoring->muted_users[i] == user_ignored)
             user_found_in_mute_list = true;
-//        i++;
     }
 
     return user_found_in_mute_list;

@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#define __cplusplus__strings__
 #include <string.h>
 #include <sys/socket.h>     /*  socket definitions        */
 #include <sys/types.h>      /*  socket types              */
@@ -194,7 +193,8 @@ command_t   commands[] =
     { CMD_HISTORY,          get_history,                "<lines>"                       },
     { CMD_KICK,             kick_user,                  "<user>"                        },
     { CMD_KICK_ALL,         kick_all_users_in_chat_room,""                              },
-    { CMD_MUTE,             mute_user,                  "<user>"                        },
+    { CMD_MUTE,             mute_user,                  "[user]"                        },
+    { CMD_UNMUTE,           unmute_user,                "<user>"                        },
 };
 
 
