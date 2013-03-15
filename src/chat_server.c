@@ -15,7 +15,8 @@ user_t user_thread[ MAX_CONN ];/* pthread/user struct array*/
 chat_room_t chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
 chat_room_t lobby;
 
-bool isLoggedIn(char *username); /* forward declaration */
+bool isLoggedIn(char *user_name, user_t *user_pointer); /* forward declaration */
+bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored);
 
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
@@ -879,21 +880,61 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
 
 int mute_user( user_t *user_submitter, int argc, char **argv )
 {
-    char str1[] = "Amy";
-    char str2[] = "amy";
-    if ( 0 == strcicmp(str1, str2) )
-    {
-        write_client( user_submitter->connection, "string compareworked");
+    user_t *mute_user_pointer = NULL;
+    // Prompt if they gave wrong arguments
+    if ( 2 != argc )
+        return DISPLAY_USAGE;
 
+    // Fail if the user is not logged in
+    if ( !isLoggedIn(argv[1], mute_user_pointer) )
+    {
+        write_client( user_submitter->connection, "ERROR: Cannot mute %s. User is not logged in. \n", argv[1] );
+        return FAILURE;
     }
+
+    //if ( isIgnoringUser( user_submitter, ))
     write_client( user_submitter->connection, "Can't mute. Note yet implemented \n" );
-    return FAILURE;
+    return SUCCESS;
 }
 
-bool isLoggedIn(char *username)
+/***********************************************************************
+* isLoggedIn - indicate whether a user with the given name is connected
+*
+* parameters:
+*   user_name - character string with target user's name
+*   user_pointer - pointer to a user_t struct that will hold a ref
+*                  to the user if it is found. CHANGED BY FUNCTION
+*
+* returns: A bool indicating whether the user_pointer is pointing at
+*          a valid logged in user with the given name
+*
+* The function checks to see if there are any logged-in users with the
+* given name (regardless of case - aMY and Amy are the same to this fn)
+* If a match is found, the user_pointer will point at the matching user
+* If no match is found, the user_pointer will be set to NULL
+*
+/**********************************************************************/
+bool isLoggedIn(char *user_name, user_t *user_pointer)
 {
-    //stub function always returns true, for now
-    return true;
+    user_pointer = NULL;
+    int i = 0;
+    // Loop over all users; find one that is connected and has same name
+    while (( NULL == user_pointer )&&(i < MAX_CONN))
+    {
+        if((true == user_thread[i].used )&& (strcicmp( user_name, user_thread[i].user_name ) == 0 ))
+        {
+            user_pointer = &user_thread[i];
+        }
+        i++;
+    }
+    // Indicate whether we found a match
+    return ( NULL != user_pointer );
+}
+
+bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored)
+{
+    // stub function
+    return false;
 }
 
 int block_user_ip( user_t *user_submitter, int argc, char **argv )
