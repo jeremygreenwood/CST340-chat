@@ -15,7 +15,7 @@ user_t user_thread[ MAX_CONN ];/* pthread/user struct array*/
 chat_room_t chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
 chat_room_t lobby;
 
-bool isLoggedIn(char *user_name, user_t *user_pointer); /* forward declaration */
+bool isLoggedIn(char *user_name, user_t **user_pointer); /* forward declaration */
 bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored);
 
 // String Case-Insensitive Comparison courtesy of
@@ -880,20 +880,67 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
 
 int mute_user( user_t *user_submitter, int argc, char **argv )
 {
-    user_t *mute_user_pointer = NULL;
+    int i;                              /* loop counter */
+    user_t *mute_user_pointer = NULL;   /* pointer to user we will mute */
+    bool first_line = true; /* for output of mute list */
+
     // Prompt if they gave wrong arguments
-    if ( 2 != argc )
+    if ( 2 < argc )
         return DISPLAY_USAGE;
 
+    // Using the command with no arguments blats out the list of muted users
+    if ( 1 == argc )
+    {
+        for ( i = 0; i < MAX_CONN; i++ )
+        {
+            if ( true == first_line )
+            {
+                write_client( user_submitter->connection, "--- Muted Users ---- \n");
+                first_line = false;
+            }
+            if ( user_submitter->muted_users[i] != NULL )
+                write_client( user_submitter->connection, "\t %s \n", user_submitter->muted_users[i]->user_name );
+        }
+        if ( true == first_line )
+            write_client( user_submitter->connection, "You haven't muted anyone yet. \n");
+        return SUCCESS;
+    }
+
     // Fail if the user is not logged in
-    if ( !isLoggedIn(argv[1], mute_user_pointer) )
+    if ( !isLoggedIn(argv[1], &mute_user_pointer) )
     {
         write_client( user_submitter->connection, "ERROR: Cannot mute %s. User is not logged in. \n", argv[1] );
         return FAILURE;
     }
 
-    //if ( isIgnoringUser( user_submitter, ))
-    write_client( user_submitter->connection, "Can't mute. Note yet implemented \n" );
+    // Fail if they're trying to mute themselves. Silly.
+    if ( mute_user_pointer == user_submitter )
+    {
+        write_client( user_submitter->connection, "You can't mute yourself. \n" );
+        return FAILURE;
+    }
+
+    // Fail if the submitting user is already ignoring the target user
+    if ( isIgnoringUser( user_submitter, mute_user_pointer ) )
+    {
+        write_client( user_submitter->connection, "ERROR: You are already ignoring %s. \n", argv[1] );
+        return FAILURE;
+    }
+
+    // Find a blank place in the user's mute list and stick 'em in
+    i = 0;
+    while ((i < MAX_CONN)&&(NULL != user_submitter->muted_users[i] ))
+        i++;
+    if ( i == MAX_CONN )  // Mute list is full
+    {
+        write_client( user_submitter->connection, "ERROR: Can't mute %s. Your mute list is full. \n", argv[1]);
+        return FAILURE;
+    }
+
+    // If we got this far, we can go ahead and mute the user and let everybody know.
+    user_submitter->muted_users[i] = mute_user_pointer;
+    write_client( mute_user_pointer->connection, "%s is ignoring you. \n", user_submitter->user_name );
+    write_client( user_submitter->connection,  "You are now ignoring %s. \n", argv[1] );
     return SUCCESS;
 }
 
@@ -913,28 +960,56 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
 * If a match is found, the user_pointer will point at the matching user
 * If no match is found, the user_pointer will be set to NULL
 *
-/**********************************************************************/
-bool isLoggedIn(char *user_name, user_t *user_pointer)
+***********************************************************************/
+bool isLoggedIn(char *user_name, user_t **user_pointer)
 {
-    user_pointer = NULL;
+    *user_pointer = NULL;
     int i = 0;
+    bool match_found = false;
+
     // Loop over all users; find one that is connected and has same name
-    while (( NULL == user_pointer )&&(i < MAX_CONN))
+    while ((!match_found)&(i < MAX_CONN))
     {
         if((true == user_thread[i].used )&& (strcicmp( user_name, user_thread[i].user_name ) == 0 ))
         {
-            user_pointer = &user_thread[i];
+            *user_pointer = &user_thread[i];
+            match_found = true;
         }
         i++;
     }
     // Indicate whether we found a match
-    return ( NULL != user_pointer );
+    //return ( NULL != *user_pointer );
+    return match_found;
 }
 
+/***********************************************************************
+* isIgnoringUser - indicate whether the first user is ignoring the 2nd
+*
+* parameters:
+*   user_ignoring - pointer to a user_t that is doing the ignoring
+*   user_ignored  - pointer to a user_t for the person being ignored
+*
+* returns: A bool indicating whether  the first user is ignoring the
+*          second user
+*
+*
+***********************************************************************/
 bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored)
 {
-    // stub function
-    return false;
+    if ((NULL == user_ignoring)||(NULL == user_ignored))
+      return false;
+
+    bool user_found_in_mute_list = false;
+    int i;
+//    while ((!user_found_in_mute_list)&&(i < MAX_CONN))
+    for ( i = 0; i < MAX_CONN; i++ )
+    {
+        if (user_ignoring->muted_users[i] == user_ignored)
+            user_found_in_mute_list = true;
+//        i++;
+    }
+
+    return user_found_in_mute_list;
 }
 
 int block_user_ip( user_t *user_submitter, int argc, char **argv )
