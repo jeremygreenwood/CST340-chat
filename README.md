@@ -37,6 +37,23 @@ CODING GUIDELINES:
     but please use your best judgement.
     
 
+ADDING COMMANDS:
+
+    In chat_server.h you will see the definition for struct command_t, which holds a command string, a function pointer, and a command
+    parameter usage string.  The commands[] array is what you will need to populate now, instead of the old way which used a large
+    nested if/else scheme.  To be clear on how to populate an commands[] array entry, add a new line like the existing ones and modify 
+    as needed for your function.  an example is:
+    { CMD_CREATE_ROOM,      create_chat_room,           "<chatroomname>"                },
+
+    where CMD_CREATE_ROOM is the defined command string,
+    create_chat_room is the actual function name (note the function must have the signature provided by struct command_t),
+    and "<chatroomname>" is the usage parameters (note you should declare empty usage parameters for functions that do not take 
+    parameters)
+
+    on a final note, instead of printing usage within your function, just return DISPLAY_USAGE from your function and it will 
+    automatically be sent to the client.
+
+
 BUILD:
 
     run the following commands to build the chat server application:
