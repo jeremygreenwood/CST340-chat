@@ -164,6 +164,10 @@ void *user_proc( void *arg )
         }
 
         printf( "%s on thread %d disconnected. \n", this_thread->user_name, this_thread->user_id );
+
+        printf( "%s has logged out, resetting all values. \n", this_thread->user_name );
+        reset_user( this_thread );
+
         write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
     }
 
@@ -326,6 +330,15 @@ void get_username( user_t *user )
             if( user_thread[ i ].used && strcmp( user_thread[ i ].user_name, msg ) == 0 )
             {
                 write_client( user->connection, "username %s is already in use, please try again. \n", msg );
+                try_again = true;
+            }
+        }
+
+        for( i = 0; i < MAX_USER_NAME_LEN; i++ )
+        {
+            if( msg[ i ] == SLASH_VALUE )
+            {
+                write_client( user->connection, "Cannot use a / in your name" );
                 try_again = true;
             }
         }
@@ -1126,4 +1139,14 @@ int get_history( user_t *user_submitter, int argc, char **argv )
         }
     }
     return SUCCESS;
+}
+
+
+int reset_user(user_t *user_submitter )
+{
+    user_submitter->admin = false;
+    user_submitter->used = false;
+    strcpy( user_submitter->user_name, "" );
+
+    return true;
 }
