@@ -17,6 +17,7 @@ chat_room_t lobby;
 
 bool isLoggedIn(char *user_name, user_t **user_pointer); /* forward declaration */
 bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name);
+void print_mute_list( user_t *user_submitter );
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
 int strcicmp(char const *a, char const *b)
@@ -157,6 +158,7 @@ void *user_proc( void *arg )
                 break;
 
             // deep copy msg to this_thread
+            memset( this_thread->user_msg, 0, BUFFER_SIZE);
             strcpy( this_thread->user_msg, msg );
 
             process_client_msg( this_thread, msg );
@@ -166,7 +168,7 @@ void *user_proc( void *arg )
 
         printf( "%s has logged out, resetting all values. \n", this_thread->user_name );
         
-        write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
+        write_chatroom( this_thread, "%s left the chat.", this_thread->user_name );
         reset_user( this_thread );
     }
 
@@ -188,7 +190,7 @@ void process_client_msg( user_t *user, char *chat_msg )
     char *arg_array[ MAX_ARGS ];
 
     num_args = get_command( chat_msg, arg_array );
-
+    
     if( num_args > 0 )
     {
         process_command( user, num_args, arg_array );
@@ -209,7 +211,7 @@ int get_command( char *msg, char **argv )
 
     argv[ num_args ] = strtok( msg + strlen( CMD_SIG ), " " );
 
-    while( argv[ num_args++ ] )
+    while( (num_args < MAX_ARGS)&&(argv[ num_args++ ] ))
         argv[ num_args ] = strtok( NULL, " " );
 
     return --num_args;
@@ -852,9 +854,7 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
 {
     int     i;
     char   *target_user_name = argv[ 1 ];
-    char   *message[BUFFER_SIZE];
-    char   *temp;
-    char   *temp2[BUFFER_SIZE];             //Needed because we're getting rid of 2 words.  Some message corruption can occur without this.
+    char   *message;
 
     if ( argc < 3 )
     {
@@ -875,35 +875,18 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
         write_client( user_submitter->connection, "Cannot send message. You are ignoring %s. \n", argv[1]);        
         return FAILURE;    
     }
+
+    // Don't talk to yourself
+    if (0 == strcicmp(user_submitter->user_name, whisper_target->user_name))
+    {
+        write_client( user_submitter->connection, "Talking to yourself? \n");
+        return FAILURE;
+    }
     
-    //Old method of forming whisper message
-    //Appends each argument onto the message
-    //Crashes if there are too many words, because tokenizer only allows MAX_ARGS arguments
-    /*strcpy( message, argv[ 2 ] );
-
-    for ( i = 3; i < argc; i++ )
-    {
-        strcat( message, " " );
-        strcat( message, argv[i] );
-    }*/
-
-    //New method of forming whisper message
-    //Uses pre-tokenized message copied in user_submitter
-    //takes off the first two words (command and target)
-
-    temp = strchr( user_submitter->user_msg, ' ' );
-    if( temp != NULL)
-    {
-        strncpy( temp2, temp + 1, BUFFER_SIZE );
-    }
-    temp = strchr( temp2, ' ' );
-    if( temp != NULL)
-    {
-        strncpy( message, temp + 1, BUFFER_SIZE );
-    }
-
-    //Find target user and send message
-
+    // Grab the full message string from user and chop off first 2 parameters
+    int offset = strlen(argv[0]) + 1 + strlen(argv[1]); 
+    message = strstr(user_submitter->user_msg + offset, argv[2]);
+    
     for( i = 0; i < MAX_CONN; i++ )
     {
         if( strcicmp( target_user_name, user_thread[i].user_name ) == 0 )        
@@ -925,38 +908,19 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
 int reply_user( user_t *user_submitter, int argc, char **argv )
 {
     //int     i;                        //Used in old message forming method
-    char   *message[BUFFER_SIZE];
-    char   *temp;
+    char   *message;
+    
 
     if ( argc < 2 )
     {
         return DISPLAY_USAGE;
     }
-
-    //Old method of forming whisper message
-    //Appendsz each argument onto the message
-    //Crashes if there are too many words, because tokenizer only allows MAX_ARGS arguments
-
-    /*strcpy( message, argv[ 1 ] );
-
-    for ( i = 2; i < argc; i++ )
-    {
-        strcat( message, " " );
-        strcat( message, argv[i] );
-    }*/
-
-    //New method of forming whisper message
-    //Uses pre-tokenized message copied in user_submitter
-    //takes off the first word (command)
-
-    temp = strchr( user_submitter->user_msg, ' ' );
-    if( temp != NULL)
-    {
-        strncpy( message, temp + 1, BUFFER_SIZE );
-    }
+    
+    // Grab the full message string from user and chop off the first parameter
+    int offset = strlen(argv[0]); 
+    message = strstr(user_submitter->user_msg + offset, argv[1]);
 
     //Send message
-
     if( user_submitter->reply_user != NULL )
     {
         write_client( user_submitter->reply_user->connection, "(%s: %s) \n", user_submitter->user_name, message );
