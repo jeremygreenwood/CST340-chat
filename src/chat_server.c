@@ -164,6 +164,10 @@ void *user_proc( void *arg )
         }
 
         printf( "%s on thread %d disconnected. \n", this_thread->user_name, this_thread->user_id );
+
+        printf( "%s has logged out, resetting all values. \n", this_thread->user_name );
+        reset_user( this_thread );
+
         write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
     }
 
@@ -327,6 +331,15 @@ void get_username( user_t *user )
             if( (true == user_thread[ i ].used) && (strcicmp( user_thread[ i ].user_name, msg ) == 0 ))            
             {
                 write_client( user->connection, "username %s is already in use, please try again. \n", msg );
+                try_again = true;
+            }
+        }
+
+        for( i = 0; i < MAX_USER_NAME_LEN; i++ )
+        {
+            if( msg[ i ] == SLASH_VALUE )
+            {
+                write_client( user->connection, "Cannot use a / in your name" );
                 try_again = true;
             }
         }
@@ -796,7 +809,7 @@ int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
     // Iterate through user_thread struct and print all users in same room
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if( user_submitter->chat_room == user_thread[ i ].chat_room )
+        if( user_submitter->chat_room == user_thread[ i ].chat_room && user_thread[ i ].used == true )
         {
             write_client( user_submitter->connection, "\t%s \n", user_thread[ i ].user_name );        
         }
@@ -1227,4 +1240,14 @@ int get_history( user_t *user_submitter, int argc, char **argv )
         }
     }
     return SUCCESS;
+}
+
+
+int reset_user(user_t *user_submitter )
+{
+    user_submitter->admin = false;
+    user_submitter->used = false;
+    strcpy( user_submitter->user_name, "" );
+
+    return true;
 }

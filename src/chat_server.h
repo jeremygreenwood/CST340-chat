@@ -81,6 +81,8 @@
 #define CMD_UNBLOCK         "unblock"
 #define CMD_LISTBLOCK       "listblock"
 
+#define SLASH_VALUE         '/'
+
 
 // types
 typedef struct user_t
@@ -140,6 +142,7 @@ int remove_user_from_chatroom( user_t *user );
 int help( user_t *user_submitter, int argc, char **argv );
 
 int logout( user_t *user_submitter, int argc, char **argv );
+int reset_user( user_t *user_submitter );
 
 int list_chat_rooms( user_t *user_submitter, int argc, char **argv );
 int create_chat_room( user_t *user_submitter, int argc, char **argv );
