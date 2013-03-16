@@ -1,7 +1,7 @@
 /*===========================================================================
  Filename    : chat_server.h
  Authors     : Jeremy Greenwood <jeremy.greenwood@oit.edu>,
-             :
+             : Joshua Durkee    <joshua.durkee@oit.edu>
  Course      : CST 340
  Assignment  : 6
  Description : Collaborative multi-threaded chat server. Project located at

@@ -1,7 +1,7 @@
 /*===========================================================================
  Filename    : chat_server.c
  Authors     : Jeremy Greenwood <jeremy.greenwood@oit.edu>
- :
+             : Joshua Durkee    <joshua.durkee@oit.edu>
  Course      : CST 340
  Assignment  : 6
  Description : Collaborative multi-threaded chat server. Project located at
@@ -18,7 +18,6 @@ chat_room_t lobby;
 bool isLoggedIn(char *user_name, user_t **user_pointer); /* forward declaration */
 bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored);
 bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name);
-
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
 int strcicmp(char const *a, char const *b)
@@ -174,7 +173,7 @@ void *user_proc( void *arg )
         server_error( "Error calling close()" );
 
     remove_user_from_chatroom( this_thread );
-    this_thread->user_name[0] = '\0';
+    this_thread->user_name[0] = '\0';    
     this_thread->used = false;
 
     return NULL ;
@@ -325,7 +324,7 @@ void get_username( user_t *user )
         // verify username is not already in use
         for( i = 0; i < MAX_CONN; i++ )
         {
-            if( (true == user_thread[ i ].used) && (strcicmp( user_thread[ i ].user_name, msg ) == 0 ))
+            if( (true == user_thread[ i ].used) && (strcicmp( user_thread[ i ].user_name, msg ) == 0 ))            
             {
                 write_client( user->connection, "username %s is already in use, please try again. \n", msg );
                 try_again = true;
@@ -421,19 +420,17 @@ void write_chatroom( user_t *user, char *msg, ... )
         // check that each user in the chatroom is used before sending message
         if( user->chat_room->users[ i ] != NULL && user->chat_room->users[ i ]->used == true )
         {
-            // Filter out unwanted messages from ignore list
-            if ( (!isIgnoringUserName(user->chat_room->users[i], user->user_name ))&&(!isIgnoringUserName(user, user->chat_room->users[i]->user_name)))
-            {
+            // Filter out unwanted messages from ignore list            
+            if ( (!isIgnoringUserName(user->chat_room->users[i], user->user_name ))&&(!isIgnoringUserName(user, user->chat_room->users[i]->user_name)))            
+            {                
                 printf( "writing to %s on thread %d\n", user->chat_room->users[ i ]->user_name, user->chat_room->users[ i ]->user_id );
-
                 sem_wait( &user->chat_room->users[ i ]->write_mutex );
-
-                // send message to user in chatroom (including user who sent message)
+                // send message to user in chatroom (including user who sent message)                
                 write_client( user->chat_room->users[ i ]->connection, "%s \n", full_msg );
-
-                sem_post( &user->chat_room->users[ i ]->write_mutex );
-            }
+                sem_post( &user->chat_room->users[ i ]->write_mutex );            
+            }        
         }
+
     }
 
     // Write the message to the next available line of chatroom's history
@@ -476,7 +473,6 @@ int remove_user_from_chatroom( user_t *user )
         {
             // announce to the room this user is leaving
             write_chatroom( user, "%s left the chatroom.", user->user_name );
-
             user->chat_room->user_count--;
 
             user->chat_room->users[ i ] = NULL;
@@ -547,9 +543,9 @@ int help( user_t *user_submitter, int argc, char **argv )
     case 2:
         for( i = 0; i < num_commands; i++ )
         {
-            if( strcicmp( commands[ i ].command_string, argv[ 1 ] ) == 0 )
+            if( strcicmp( commands[ i ].command_string, argv[ 1 ] ) == 0 )            
             {
-                write_client( user_submitter->connection, "Usage: %s%s %s \n", CMD_SIG, commands[ i ].command_string , commands[ i ].command_parameter_usage );
+                write_client( user_submitter->connection, "Usage: %s%s %s \n", CMD_SIG, commands[ i ].command_string , commands[ i ].command_parameter_usage );                
                 break;
             }
         }
@@ -572,7 +568,6 @@ int logout( user_t *user_submitter, int argc, char **argv )
 {
     user_submitter->logout = true;
     user_submitter->used = false;
-
     return SUCCESS;
 }
 
@@ -803,7 +798,7 @@ int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
     {
         if( user_submitter->chat_room == user_thread[ i ].chat_room )
         {
-            write_client( user_submitter->connection, "\t%s \n", user_thread[ i ].user_name );
+            write_client( user_submitter->connection, "\t%s \n", user_thread[ i ].user_name );        
         }
     }
 
@@ -812,30 +807,30 @@ int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
 
 int list_all_users( user_t *user_submitter, int argc, char **argv )
 {
-    bool first_line = true;
+    bool first_line = true;    
     int i;
 
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if ( true == user_thread[i].used)
-        {
-            if ( true == first_line )
-            {
-                first_line = false;
-                write_client( user_submitter->connection, "--- All Online Users --- \n" );
-            }
-            if ( isIgnoringUserName( user_submitter, user_thread[i].user_name ) )
-            {
-                write_client( user_submitter->connection, "%s\t (ignored) \n", user_thread[ i ].user_name );
-            }
-            else
-            {
-                if ( isIgnoringUserName(&user_thread[i], user_submitter->user_name) )
-                    write_client( user_submitter->connection, "%s\t (ignoring you) \n", user_thread[ i ].user_name );
-                else
-                    write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
-            }
-        }
+        if ( true == user_thread[i].used)        
+        {            
+            if ( true == first_line )            
+            {                
+                first_line = false;                
+                write_client( user_submitter->connection, "--- All Online Users --- \n" );            
+            }            
+            if ( isIgnoringUserName( user_submitter, user_thread[i].user_name ) )            
+            {                
+                write_client( user_submitter->connection, "%s\t (ignored) \n", user_thread[ i ].user_name );            
+            }            
+            else            
+            {                
+                if ( isIgnoringUserName(&user_thread[i], user_submitter->user_name) )                    
+                    write_client( user_submitter->connection, "%s\t (ignoring you) \n", user_thread[ i ].user_name );                
+                else                    
+                    write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );            
+            }        
+        }    
     }
 
     return SUCCESS;
@@ -846,46 +841,67 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
     int     i;
     char   *target_user_name = argv[ 1 ];
     char   *message[BUFFER_SIZE];
+    char   *temp;
+    char   *temp2[BUFFER_SIZE];             //Needed because we're getting rid of 2 words.  Some message corruption can occur without this.
 
     if ( argc < 3 )
     {
         return DISPLAY_USAGE;
     }
 
-    // Fail if target user is not logged in
-    user_t *whisper_target = NULL;
-    if ( !isLoggedIn(argv[1], &whisper_target))
-    {
-        write_client( user_submitter->connection, "Cannot send message. %s is not logged in. \n", argv[1]);
-        return FAILURE;
+    // Fail if target user is not logged in    
+    user_t *whisper_target = NULL;    
+    if ( !isLoggedIn(argv[1], &whisper_target))    
+    {        
+        write_client( user_submitter->connection, "Cannot send message. %s is not logged in. \n", argv[1]);        
+        return FAILURE;    
+    }    
+    
+    // Fail if target user is being ignored    
+    if (( NULL != whisper_target)&&( isIgnoringUserName(user_submitter, whisper_target->user_name)))    
+    {        
+        write_client( user_submitter->connection, "Cannot send message. You are ignoring %s. \n", argv[1]);        
+        return FAILURE;    
     }
-
-    // Fail if target user is being ignored
-    if (( NULL != whisper_target)&&( isIgnoringUserName(user_submitter, whisper_target->user_name)))
-    {
-        write_client( user_submitter->connection, "Cannot send message. You are ignoring %s. \n", argv[1]);
-        return FAILURE;
-    }
-
-
-    strcpy( message, argv[ 2 ] );
+    
+    //Old method of forming whisper message
+    //Appends each argument onto the message
+    //Crashes if there are too many words, because tokenizer only allows MAX_ARGS arguments
+    /*strcpy( message, argv[ 2 ] );
 
     for ( i = 3; i < argc; i++ )
     {
         strcat( message, " " );
         strcat( message, argv[i] );
+    }*/
+
+    //New method of forming whisper message
+    //Uses pre-tokenized message copied in user_submitter
+    //takes off the first two words (command and target)
+
+    temp = strchr( user_submitter->user_msg, ' ' );
+    if( temp != NULL)
+    {
+        strncpy( temp2, temp + 1, BUFFER_SIZE );
     }
+    temp = strchr( temp2, ' ' );
+    if( temp != NULL)
+    {
+        strncpy( message, temp + 1, BUFFER_SIZE );
+    }
+
+    //Find target user and send message
 
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if( strcicmp( target_user_name, user_thread[i].user_name ) == 0 )
+        if( strcicmp( target_user_name, user_thread[i].user_name ) == 0 )        
         {
-            // Suceed but don't actually send message if target is ignoring user
-            if ( !isIgnoringUserName( &user_thread[i], user_submitter->user_name) )
-            {
-                write_client( user_thread[i].connection, "(%s: %s) \n", user_submitter->user_name, message );
-                user_thread[i].reply_user = user_submitter;
-            }
+            // Suceed but don't actually send message if target is ignoring user            
+            if ( !isIgnoringUserName( &user_thread[i], user_submitter->user_name) )            
+            {                
+                write_client( user_thread[i].connection, "(%s: %s) \n", user_submitter->user_name, message );                
+                user_thread[i].reply_user = user_submitter;            
+            }            
             return SUCCESS;
         }
     }
@@ -896,21 +912,38 @@ int whisper_user( user_t *user_submitter, int argc, char **argv )
 
 int reply_user( user_t *user_submitter, int argc, char **argv )
 {
-    int     i;
+    //int     i;                        //Used in old message forming method
     char   *message[BUFFER_SIZE];
+    char   *temp;
 
     if ( argc < 2 )
     {
         return DISPLAY_USAGE;
     }
 
-    strcpy( message, argv[ 1 ] );
+    //Old method of forming whisper message
+    //Appendsz each argument onto the message
+    //Crashes if there are too many words, because tokenizer only allows MAX_ARGS arguments
+
+    /*strcpy( message, argv[ 1 ] );
 
     for ( i = 2; i < argc; i++ )
     {
         strcat( message, " " );
         strcat( message, argv[i] );
+    }*/
+
+    //New method of forming whisper message
+    //Uses pre-tokenized message copied in user_submitter
+    //takes off the first word (command)
+
+    temp = strchr( user_submitter->user_msg, ' ' );
+    if( temp != NULL)
+    {
+        strncpy( message, temp + 1, BUFFER_SIZE );
     }
+
+    //Send message
 
     if( user_submitter->reply_user != NULL )
     {
@@ -946,6 +979,7 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
 {
     int i;                              /* loop counter */
     user_t *mute_user_pointer = NULL;   /* pointer to user we will mute */
+    bool first_line = true; /* for output of mute list */
 
     // Prompt if they gave wrong arguments
     if ( 2 < argc )
@@ -954,7 +988,7 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
     // Using the command with no arguments blats out the list of muted users
     if ( 1 == argc )
     {
-        print_mute_list( user_submitter );
+        print_mute_list( user_submitter );        
         return SUCCESS;
     }
 
@@ -973,7 +1007,7 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
     }
 
     // Fail if the submitting user is already ignoring the target user
-    if ( isIgnoringUserName( user_submitter, mute_user_pointer->user_name ) )
+    if ( isIgnoringUserName( user_submitter, mute_user_pointer->user_name ) )    
     {
         write_client( user_submitter->connection, "ERROR: You are already ignoring %s. \n", argv[1] );
         return FAILURE;
@@ -981,40 +1015,40 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
 
     // Find a blank place in the user's mute list and stick 'em in
     i = 0;
-    bool found = false; /* for output of mute list */
-    while ((i < MAX_CONN)&&( !found ))
-    {
-        if ( '\0' == user_submitter->muted_users[i][0] )
-          found = true;
+    bool found = false; /* for output of mute list */    
+    while ((i < MAX_CONN)&&( !found ))    
+    {        
+        if ( '\0' == user_submitter->muted_users[i][0] )          
+            found = true;        
         i++;
-    }
 
-    if ( false == found )  // Mute list is full
+    }    
+    
+    if ( false == found )  // Mute list is full    
     {
         write_client( user_submitter->connection, "ERROR: Can't mute %s. Your mute list is full. \n", argv[1]);
         return FAILURE;
     }
 
     // If we got this far, we can go ahead and mute the user and let everybody know.
-    strcpy(user_submitter->muted_users[--i], mute_user_pointer->user_name);
+    strcpy(user_submitter->muted_users[--i], mute_user_pointer->user_name);    
     write_client( mute_user_pointer->connection, "%s is ignoring you. \n", user_submitter->user_name );
     write_client( user_submitter->connection,  "You are now ignoring %s. \n", argv[1] );
     return SUCCESS;
 }
 
 int unmute_user( user_t *user_submitter, int argc, char **argv )
-{
-    // Prompt if they gave wrong arguments
-    if ( 2 < argc )
-        return DISPLAY_USAGE;
-
-    // Using the command with no arguments blats out the list of muted users
-    if ( 1 == argc )
-    {
-        print_mute_list( user_submitter );
-        return SUCCESS;
-    }
-
+{    
+    // Prompt if they gave wrong arguments    
+    if ( 2 < argc )        
+        return DISPLAY_USAGE;    
+        
+    // Using the command with no arguments blats out the list of muted users    
+    if ( 1 == argc )    
+    {        
+        print_mute_list( user_submitter );        
+        return SUCCESS;    
+    }    
     return FAILURE;
 }
 
@@ -1032,29 +1066,28 @@ int unmute_user( user_t *user_submitter, int argc, char **argv )
 *
 ***********************************************************************/
 void print_mute_list( user_t *user_submitter )
-{
-    // If we didn't get a valid pointer, don't try to use it
-    if (NULL == user_submitter)
-        return;
-
-    int i;                          /* loop counter */
-    bool first_line = true;
-    for ( i = 0; i < MAX_CONN; i++ )
-    {
-
-        if ( '\0' != user_submitter->muted_users[i][0] )
-        {
-            if ( true == first_line )
-            {
-                write_client( user_submitter->connection, "--- Muted Users ---- \n");
-                first_line = false;
-            }
-            write_client( user_submitter->connection, "\t %s \n", user_submitter->muted_users[i] );
-        }
-
-    }
-    if ( true == first_line )
-        write_client( user_submitter->connection, "You haven't muted anyone yet. \n");
+{    
+    // If we didn't get a valid pointer, don't try to use it    
+    if (NULL == user_submitter)        
+        return;    
+    
+    int i;                          /* loop counter */    
+    bool first_line = true;    
+    for ( i = 0; i < MAX_CONN; i++ )    
+    {        
+        if ( '\0' != user_submitter->muted_users[i][0] )        
+        {            
+            if ( true == first_line )            
+            {                
+                write_client( user_submitter->connection, "--- Muted Users ---- \n");                
+                first_line = false;            
+            }            
+            write_client( user_submitter->connection, "\t %s \n", user_submitter->muted_users[i] );        
+        }    
+    }    
+    
+    if ( true == first_line )        
+        write_client( user_submitter->connection, "You haven't muted anyone yet. \n");    
     return;
 }
 
@@ -1097,34 +1130,32 @@ bool isLoggedIn(char *user_name, user_t **user_pointer)
 }
 
 /***********************************************************************
-* isIgnoringUserName - indicate whether given name is in ignore list
-*
+* isIgnoringUser - indicate whether the first user is ignoring the 2nd
+* isIgnoringUserName - indicate whether given name is in ignore list*
 * parameters:
 *   user_ignoring - pointer to a user_t that is doing the ignoring
-*   ignore_name   - char * that has name of person being ignored
-*
+*   user_ignored  - pointer to a user_t for the person being ignored
+*   ignore_name   - char * that has name of person being ignored*
 * returns: A bool indicating whether  the first user is ignoring the
-*          second user. Does case-insensitive comparison, so Amy == amy
-*
+*          second user
+*          second user. Does case-insensitive comparison, so Amy == amy*
 ***********************************************************************/
 bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name)
 {
-    // Can't ignore a blank user
-    if ((NULL == user_ignoring)||('\0' == ignore_name))
+    // Can't ignore a blank user    
+    if ((NULL == user_ignoring)||('\0' == ignore_name))        
         return false;
-
     bool user_found_in_mute_list = false;
-    int i = 0;
-    while (( !user_found_in_mute_list )&&( i < MAX_CONN))
+    int i = 0;    
+    while (( !user_found_in_mute_list )&&( i < MAX_CONN))    
     {
-        if ( 0 == strcicmp(user_ignoring->muted_users[i],ignore_name))
+        if ( 0 == strcicmp(user_ignoring->muted_users[i],ignore_name))            
             user_found_in_mute_list = true;
-        i++;
+        i++;    
     }
 
     return user_found_in_mute_list;
 }
-
 
 int block_user_ip( user_t *user_submitter, int argc, char **argv )
 {
@@ -1143,10 +1174,10 @@ int get_history( user_t *user_submitter, int argc, char **argv )
     if ( NULL == user_room )
         return FAILURE;
 
-    // Fail if they gave too many arguments
-    if ( argc > 2 )
+    // Fail if they gave too many arguments    
+    if ( argc > 2 )        
         return DISPLAY_USAGE;
-
+        
     if ( argc == 1 )
     {
         // If they didn't specify, they get all the history.
@@ -1174,7 +1205,6 @@ int get_history( user_t *user_submitter, int argc, char **argv )
 		sprintf(header, "%s %d %s \n","--- Chatroom History ( last ", total_lines, " lines) ---");
 
         write_client( user_submitter->connection, header);
-		//line_num = ( total_lines + HISTORY_SIZE - user_room->history_count) % HISTORY_SIZE;
 		line_num = (user_room->history_count - 1 + HISTORY_SIZE) % HISTORY_SIZE;
         i = 0;
 		while ((line_num != user_room->history_count)&&( i < total_lines ))
