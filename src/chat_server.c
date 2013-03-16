@@ -16,7 +16,6 @@ chat_room_t chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
 chat_room_t lobby;
 
 bool isLoggedIn(char *user_name, user_t **user_pointer); /* forward declaration */
-bool isIgnoringUser( user_t *user_ignoring, user_t *user_ignored);
 bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name);
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
@@ -166,9 +165,9 @@ void *user_proc( void *arg )
         printf( "%s on thread %d disconnected. \n", this_thread->user_name, this_thread->user_id );
 
         printf( "%s has logged out, resetting all values. \n", this_thread->user_name );
-        reset_user( this_thread );
-
+        
         write_chatroom( this_thread, "%s left the chat. \n", this_thread->user_name );
+        reset_user( this_thread );
     }
 
     // close the connection
@@ -1062,6 +1061,37 @@ int unmute_user( user_t *user_submitter, int argc, char **argv )
         print_mute_list( user_submitter );        
         return SUCCESS;    
     }    
+    
+    // Fail if the given username isn't in the user's mute list
+    if ( !isIgnoringUserName( user_submitter, argv[1] ))
+    {
+        write_client( user_submitter->connection, "Error. %s is not muted. \n", argv[1]);
+        return FAILURE;
+    }
+    
+    
+    int i=0;                      /* loop counter */
+    user_t *other_user = NULL;
+    while ( i < MAX_CONN)
+    {
+        if ( 0 == strcicmp(user_submitter->muted_users[i], argv[1]) )
+        {
+            printf( "after strcicmp \n");
+            user_submitter->muted_users[i][0] = '\0';
+            
+            if ( isLoggedIn(argv[1], &other_user))
+            {
+                printf( "user is logged in \n");
+                if (NULL != other_user)
+                    write_client(other_user->connection, "%s has stopped ignoring you. \n", user_submitter->user_name);
+            }
+            write_client( user_submitter->connection, "You are no longer ignoring %s. \n", argv[1]);
+            return SUCCESS;
+        }
+        i++;
+    }
+    
+    write_client( user_submitter->connection, "Error. Cannot unmute %s. \n", argv[1]);
     return FAILURE;
 }
 
