@@ -795,7 +795,7 @@ int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
     // Iterate through user_thread struct and print all users in same room
     for( i = 0; i < MAX_CONN; i++ )
     {
-        if( user_submitter->chat_room == user_thread[ i ].chat_room )
+        if( user_submitter->chat_room == user_thread[ i ].chat_room && user_thread[ i ].used == true )
         {
             write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
         }
@@ -810,7 +810,11 @@ int list_all_users( user_t *user_submitter, int argc, char **argv )
 
     for( i = 0; i < MAX_CONN; i++ )
     {
-        write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
+        // This check is in place to make sure only active users are printed.
+        if( user_thread[i].used == true )
+        {
+            write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );
+        }
     }
 
     return SUCCESS;
