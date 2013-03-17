@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <time.h>           /*  time functions            */
+#include <ctype.h>          /*  for tolower() function    */
 #include "helper.h"         /*  our own helper functions  */
 
 
@@ -122,7 +123,7 @@ typedef struct blocked_ip_t
 {
     struct in_addr      user_ip_addr;                       /* IP address that was blocked */
     char                user_name[ MAX_USER_NAME_LEN ];     /* user that was blocked       */
-    char                reason[ BUFFER_SIZE ];          /* Reason user was blocked         */
+    char                reason[ BUFFER_SIZE ];              /* Reason user was blocked     */
     int                 active;                         
     int                 id;
 } blocked_ip_t;
@@ -139,6 +140,13 @@ void init_user_thread( void );
 void destroy_user_thread( void );
 void get_username( user_t *user );
 bool admin_check( user_t *user_submitter );
+int reset_user( user_t *user_submitter );
+bool isLoggedIn( char *user_name, user_t **user_pointer ); /* forward declaration */
+bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name );
+void print_mute_list( user_t *user_submitter );
+// String Case-Insensitive Comparison courtesy of
+// http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
+int strcicmp( char const *a, char const *b );
 
 // chatroom helper functions
 void init_chatroom( chat_room_t *room, int id, char *name );
@@ -154,7 +162,6 @@ int remove_user_from_chatroom( user_t *user );
 int help( user_t *user_submitter, int argc, char **argv );
 
 int logout( user_t *user_submitter, int argc, char **argv );
-int reset_user( user_t *user_submitter );
 
 int list_chat_rooms( user_t *user_submitter, int argc, char **argv );
 int create_chat_room( user_t *user_submitter, int argc, char **argv );
