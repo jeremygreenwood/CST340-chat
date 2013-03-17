@@ -172,15 +172,19 @@ void process_client_msg( user_t *user, char *chat_msg )
     int num_args;
     char *arg_array[ MAX_ARGS ];
 
-    num_args = get_command( chat_msg, arg_array );
-    
-    if( num_args > 0 )
+    // throw away empty chat messages, assuming the user inadvertently pressed enter
+    if( strcmp( chat_msg, "" ) != 0 )
     {
-        process_command( user, num_args, arg_array );
-    }
-    else
-    {
-        write_chatroom( user, "%s: %s", user->user_name, chat_msg );
+        num_args = get_command( chat_msg, arg_array );
+
+        if( num_args > 0 )
+        {
+            process_command( user, num_args, arg_array );
+        }
+        else
+        {
+            write_chatroom( user, "%s: %s", user->user_name, chat_msg );
+        }
     }
 }
 
