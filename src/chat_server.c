@@ -292,10 +292,10 @@ void destroy_user_thread( void )
 
 void get_username( user_t *user )
 {
-    int i;
-    int result;
-    char msg[ MAX_LINE ];
-    bool try_again = true;
+    int     i;
+    int     result;
+    char    msg[ MAX_LINE ];
+    bool    try_again = true;
 
     while( try_again == true )
     {
@@ -313,22 +313,33 @@ void get_username( user_t *user )
             return;
         }
 
+        // verify username is not greater than the maximum number of allowed characters
+        if( strlen( msg ) >= MAX_USER_NAME_LEN )
+        {
+            write_client( user->connection, "Error: exceeded maximum username length of %d characters, please try again. \n", MAX_USER_NAME_LEN );
+            try_again = true;
+            continue;
+        }
+
         // verify username is not already in use
         for( i = 0; i < MAX_CONN; i++ )
         {
-            if( (true == user_thread[ i ].used) && (strcicmp( user_thread[ i ].user_name, msg ) == 0 ))            
+            if( ( true == user_thread[ i ].used ) && ( strcicmp( user_thread[ i ].user_name, msg ) == 0 ) )
             {
                 write_client( user->connection, "username %s is already in use, please try again. \n", msg );
                 try_again = true;
+                continue;
             }
         }
 
-        for( i = 0; i < MAX_USER_NAME_LEN; i++ )
+        // verify username is alphanumeric
+        for( i = 0; i < strlen( msg ); i++ )
         {
-            if( msg[ i ] == SLASH_VALUE )
+            if( !isalnum( msg[ i ] ) )
             {
-                write_client( user->connection, "Cannot use a / in your name" );
+                write_client( user->connection, "Invalid character: %c, user name must be alphanumeric. \n", msg[ i ] );
                 try_again = true;
+                continue;
             }
         }
     }
@@ -386,11 +397,6 @@ bool admin_check( user_t *user_submitted )
     }
 
     return false;
-}
-
-bool isAnAdmin( user_t *user_submitter )
-{
-    return user_submitter->admin;
 }
 
 void init_chatroom( chat_room_t *room, int id, char *name )
