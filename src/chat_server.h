@@ -141,8 +141,8 @@ void destroy_user_thread( void );
 void get_username( user_t *user );
 bool admin_check( user_t *user_submitter );
 int reset_user( user_t *user_submitter );
-bool isLoggedIn( char *user_name, user_t **user_pointer ); /* forward declaration */
-bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name );
+bool is_logged_in( char *user_name, user_t **user_pointer ); /* forward declaration */
+bool is_ignoring_user_name( user_t *user_ignoring, char *ignore_name );
 void print_mute_list( user_t *user_submitter );
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
