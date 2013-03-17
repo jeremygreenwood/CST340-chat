@@ -946,7 +946,6 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
 {
     int i;                              /* loop counter */
     user_t *mute_user_pointer = NULL;   /* pointer to user we will mute */
-    bool first_line = true; /* for output of mute list */
 
     // Prompt if they gave wrong arguments
     if ( 2 < argc )
@@ -970,6 +969,13 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
     if ( mute_user_pointer == user_submitter )
     {
         write_client( user_submitter->connection, "You can't mute yourself. \n" );
+        return FAILURE;
+    }
+    
+    // Fail if they're trying to mute the administrator
+    if ( 0 == strcicmp(mute_user_pointer->user_name, ADMIN_NAME) )
+    {
+        write_client( user_submitter->connection, "Cannot mute %s. Nobody puts %s in a corner. \n", ADMIN_NAME, ADMIN_NAME);
         return FAILURE;
     }
 
@@ -1157,8 +1163,9 @@ bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name)
 
 int get_history( user_t *user_submitter, int argc, char **argv )
 {
-    int i; /* loop counter */
+    int i = 0; /* loop counter */
     int line_num;
+    int total_lines;
     struct chat_room_t *user_room = user_submitter->chat_room;
 
     // Make sure the user has a valid room first
@@ -1168,54 +1175,42 @@ int get_history( user_t *user_submitter, int argc, char **argv )
     // Fail if they gave too many arguments    
     if ( argc > 2 )        
         return DISPLAY_USAGE;
-        
-    if ( argc == 1 )
+    
+    char header[80];    /* For printing title */
+    // If they didn't provide a # of lines, print all available history
+    if ( argc == 1 ) 
     {
-        // If they didn't specify, they get all the history.
-        write_client( user_submitter->connection, "--- Chatroom History --- \n");
         line_num = user_room->history_count;
-        for ( i = 0; i < HISTORY_SIZE ; i++ )
-        {
-
-            if ( '\0' != user_room->history[line_num][0] )
-            {
-                write_client( user_submitter->connection, "%s \n",user_room->history[line_num]);
-            }
-
-            line_num = (line_num + 1) % HISTORY_SIZE;
-        }
-
+        total_lines = HISTORY_SIZE;
     }
-    else
-    {
-        char header[80];
-		int total_lines = atoi(argv[1]);
+    else    // Otherwise, print the # of requested lines
+    {        
+		total_lines = atoi(argv[1]);
 		if (total_lines > HISTORY_SIZE)
 		    total_lines = HISTORY_SIZE;
+            
+        line_num = (user_room->history_count - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+    }
+	// Go backwards, count up how many non-blank lines can be printed before this line
+    while ((line_num != user_room->history_count)&&( i < total_lines ))
+    {
+        if ('\0' != user_room->history[line_num][0] )
+            i++;
+        line_num = (line_num - 1 + HISTORY_SIZE) % HISTORY_SIZE;
+    }
+    line_num = (line_num + 1 + HISTORY_SIZE) % HISTORY_SIZE;
+    sprintf(header, "%s %d %s \n","--- Chatroom History ( last ", i , " lines) ---");
 
-		sprintf(header, "%s %d %s \n","--- Chatroom History ( last ", total_lines, " lines) ---");
-
-        write_client( user_submitter->connection, header);
-		line_num = (user_room->history_count - 1 + HISTORY_SIZE) % HISTORY_SIZE;
-        i = 0;
-		while ((line_num != user_room->history_count)&&( i < total_lines ))
-		{
-		    if ('\0' != user_room->history[line_num][0] )
-			    i++;
-			line_num = (line_num - 1 + HISTORY_SIZE) % HISTORY_SIZE;
-		}
-		line_num = (line_num + 1 + HISTORY_SIZE) % HISTORY_SIZE;
-        while ((line_num != user_room->history_count)&&( i > 0 ))
+    write_client( user_submitter->connection, header);
+    // Print out each of the non blank lines, going forwards
+    while ((line_num != user_room->history_count)&&( i > 0 ))
+    {
+        if ( '\0' != user_room->history[line_num][0] )  /* Skip-a da blanks */
         {
-
-            if ( '\0' != user_room->history[line_num][0] )
-            {
-                write_client( user_submitter->connection, "%s \n",user_room->history[line_num]);
-				i--;
-            }
-
-            line_num = (line_num + 1) % HISTORY_SIZE;
+            write_client( user_submitter->connection, "%s \n",user_room->history[line_num]);
+            i--;
         }
+        line_num = (line_num + 1) % HISTORY_SIZE;
     }
     return SUCCESS;
 }
