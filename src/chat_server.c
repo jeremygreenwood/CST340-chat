@@ -687,12 +687,24 @@ int list_chat_rooms( user_t *user_submitter, int argc, char **argv )
 
 int create_chat_room( user_t *user_submitter, int argc, char **argv )
 {
-    int i;
-    int room_idx = -1;
-    char *new_name = argv[ 1 ];
+    int     i;
+    int     room_idx = -1;
+    char   *new_name = argv[ 1 ];
 
     if( new_name != NULL )
     {
+        // verify chatroom name is not greater than the maximum number of allowed characters
+        if( strlen( new_name ) >= MAX_ROOM_NAME_LEN )
+        {
+            write_client(
+                            user_submitter->connection,
+                            "Error: exceeded maximum chatroom name length of %d characters. \n",
+                            MAX_ROOM_NAME_LEN
+                        );
+
+            return FAILURE;
+        }
+
         //search for inactive chat room
         for( i = 0; i < MAX_ROOMS; i++ )
         {
