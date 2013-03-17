@@ -39,8 +39,8 @@
 #define MAX_ARG_LEN         64
 #define MAX_CMD_STR_LEN     32
 #define MAX_CMD_USAGE_LEN   512
-#define MAX_USER_NAME_LEN   32
-#define MAX_ROOM_NAME_LEN   32
+#define MAX_USER_NAME_LEN   32                  /* maximum characters including null terminating character */
+#define MAX_ROOM_NAME_LEN   32                  /* maximum characters including null terminating character */
 #define MAX_USERS_IN_ROOM   MAX_CONN
 #define HISTORY_SIZE        50                  /* max lines of history */
 #define BUFFER_SIZE         1024                /* max length of message */
