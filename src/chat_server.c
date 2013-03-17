@@ -14,6 +14,7 @@
 user_t user_thread[ MAX_CONN ];/* pthread/user struct array*/
 chat_room_t chatrooms[ MAX_ROOMS ]; /* chatroom struct array    */
 chat_room_t lobby;
+blocked_ip_t blocks[ MAX_BLOCKED ];
 
 bool isLoggedIn(char *user_name, user_t **user_pointer); /* forward declaration */
 bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name);
@@ -44,6 +45,7 @@ int main( int argc, char *argv[ ] )
     init_user_thread();
 
     memset( &chatrooms, 0, sizeof( chatrooms ) );
+    memset( &blocks, 0, sizeof( blocks ) );
 
     // get port number from command line or set to default port
     if( argc == 2 )
@@ -98,7 +100,7 @@ int main( int argc, char *argv[ ] )
             if( user_thread[ i ].used == false )
             {
                 // found an available thread
-                user_thread[ i ].user_ip_addr = client_addr.sin_addr.s_addr;
+                user_thread[ i ].user_ip_addr = client_addr.sin_addr;
                 user_thread[ i ].user_id = i;
                 user_thread[ i ].connection = conn_s;
                 user_thread[ i ].used = true;
@@ -243,7 +245,7 @@ void process_command( user_t *user, int argc, char **argv )
             break;
         }
     }
-
+    
     // catch unknown commands
     if( i == num_commands )
     {
@@ -591,14 +593,8 @@ int kick_user( user_t *user_submitter, int argc, char **argv )
     int result = FAILURE;
     char *user_name = argv[ 1 ];
 
-    // Validate the user_submitter is an admin
-    if( !isAnAdmin( user_submitter ) )
-    {
-        return NOT_ADMIN;
-    }
-
-    // verify a room name was provided
-    if( user_name == NULL )
+    // verify a user name was provided and the number of args is correct
+    if( user_name == NULL || argc != 2)
     {
         return DISPLAY_USAGE;
     }
@@ -614,6 +610,7 @@ int kick_user( user_t *user_submitter, int argc, char **argv )
             if( result == SUCCESS )
             {
                 write_client( user_submitter->connection, "User %s was kicked. \n", user_name );
+                return result;
             }
         }
     }
@@ -631,14 +628,8 @@ int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv )
     char *room_name = argv[ 1 ];
     chat_room_t *room = NULL;
 
-    // Validate the user_submitter is an admin
-    if( !isAnAdmin( user_submitter ) )
-    {
-        return NOT_ADMIN;
-    }
-
     // verify a room name was provided
-    if( room_name == NULL )
+    if( room_name == NULL || argc != 2)
     {
         return DISPLAY_USAGE;
     }
@@ -1164,13 +1155,6 @@ bool isIgnoringUserName( user_t *user_ignoring, char *ignore_name)
     return user_found_in_mute_list;
 }
 
-int block_user_ip( user_t *user_submitter, int argc, char **argv )
-{
-    return FAILURE;
-}
-
-//int unblock_user_ip( user_t *user_submitter, int argc, char **argv );
-//int list_blocked_users( user_t *user_submitter, int argc, char **argv );
 int get_history( user_t *user_submitter, int argc, char **argv )
 {
     int i; /* loop counter */
@@ -1245,3 +1229,160 @@ int reset_user(user_t *user_submitter )
 
     return true;
 }
+
+bool block_is_active( blocked_ip_t *block )
+{
+    return block->active != 0 ? true : false;
+}
+
+int open_blocks()
+{
+    int i;
+    int cnt = MAX_BLOCKED;
+    for(i = 0; i < MAX_BLOCKED; i++){
+        if(blocks[i].active == 1){
+            cnt--;
+        }
+    }
+    return cnt;
+}
+
+int add_user_to_block_list(user_t *user_submitter, char *reason)
+{
+    int i;
+
+    //Find open spot to block
+    for(i = 0; i < MAX_BLOCKED; i++){
+        if( !block_is_active( &blocks[i] ) ){
+            blocks[i].active = 1;
+            blocks[i].id = i;
+            blocks[i].user_ip_addr = user_submitter->user_ip_addr;
+            strcpy( blocks[i].user_name, user_submitter->user_name);
+            strcpy( blocks[i].reason, reason);
+            return open_blocks();
+        }
+    }
+    return FAILURE;
+}
+
+int remove_block_list_id(user_t *user_submitter, int id_num)
+{
+    int i;
+    for(i = 0; i < MAX_BLOCKED; i++){
+        if ( blocks[i].id == id_num ){
+            blocks[i].active = 0;
+            write_client( user_submitter->connection, "Unblocked: %s @ %s \n", blocks[i].user_name, inet_ntoa( blocks[i].user_ip_addr ));
+            return SUCCESS;
+        }
+    }
+    write_client( user_submitter->connection, "Could not find ID %d \n", id_num);
+    return FAILURE;
+}
+
+int block_user_ip( user_t *user_submitter, int argc, char **argv )
+{
+    int i, open_spots;
+    char *user_name = argv[ 1 ];
+
+    // verify a user name was provided and the number of args is correct
+    if( user_name == NULL || 2 > argc)
+    {
+        return DISPLAY_USAGE;
+    }
+
+    char *block_reason;
+    if(argc == 2)
+    {
+        // No reason was given
+        block_reason = "*No reason given*";
+    }
+    else
+    {
+        // Grab the full message string from user and chop off first 2 parameters
+        int offset = strlen(argv[0]) + 1 + strlen(argv[1]);
+        block_reason = strstr(user_submitter->user_msg + offset, argv[2]);
+    }
+
+    // iterate through all users to find the one targeted for kick
+    for( i = 0; i < MAX_CONN; i++ )
+    {
+        if( strcmp( user_thread[ i ].user_name, user_name ) == 0 )
+        {
+            // Block the targeted user
+            open_spots = add_user_to_block_list( &user_thread[ i ], block_reason );
+
+
+            if( open_spots >= 0 )
+            {
+                // Inform the user why they have been blocked then kick them
+                write_client( user_thread[ i ].connection, "You have been blocked. Reason: %s \n", block_reason );
+                logout( &user_thread[ i ], argc, argv );
+
+                write_client( user_submitter->connection, "User %s was blocked. \n", user_name );
+                write_client( user_submitter->connection, "%d blocks available out of %d.\n", open_spots, MAX_BLOCKED);
+                return SUCCESS;
+            }
+            else {
+                write_client( user_submitter->connection, "Could not block %s. \n", user_name );
+                write_client( user_submitter->connection, "%d blocks available out of %d.\n", 0, MAX_BLOCKED);
+                return FAILURE;
+            }
+        }
+    }
+
+    // send message to user_submitter and return targeted user was not found
+    write_client( user_submitter->connection, "Could not find %s. \n", user_name );
+
+    return FAILURE;
+}
+
+int unblock_user_ip( user_t *user_submitter, int argc, char **argv )
+{
+    int i;
+    int result = FAILURE;
+    char *id_str = argv[ 1 ];
+
+    // verify a user name was provided and the number of args is correct
+    if( id_str == NULL || 2 > argc)
+    {
+        return DISPLAY_USAGE;
+    }
+
+    // Convert to int
+    int target_id = atoi(id_str);
+
+    return remove_block_list_id(user_submitter, target_id);
+}
+
+int list_blocked_users( user_t *user_submitter, int argc, char **argv )
+{
+    bool first_line = true;
+    int i;
+
+    for( i = 0; i < MAX_BLOCKED; i++ )
+    {
+        if ( block_is_active( &blocks[i] ) )
+        {
+            // Print the header
+            if ( true == first_line )
+            {
+                first_line = false;
+                write_client( user_submitter->connection, "--- All Blocked Users --- \n" );
+                write_client(user_submitter->connection, "%2s: %-10s | %15s | %s \n",
+                                    "ID", "User Name", "User IP Address", "Reason");
+            }
+
+            // List each person
+            write_client(user_submitter->connection, "%2d: %-10s | %15s | %s \n",
+                    blocks[i].id, blocks[i].user_name, inet_ntoa( blocks[i].user_ip_addr ), blocks[i].reason);
+        }
+    }
+
+    // No blocks where found
+    if ( true == first_line ){
+        write_client( user_submitter->connection, "--- All Blocked Users --- \nNone\n" );
+    }
+
+    return SUCCESS;
+}
+

@@ -32,6 +32,7 @@
 #define NOT_ADMIN           ( -3 )
 #define MAX_ROOMS           5
 #define MAX_CONN            10
+#define MAX_BLOCKED         2
 #define ECHO_PORT           3456
 #define MAX_ARGS            16
 #define MAX_ARG_LEN         64
@@ -89,18 +90,18 @@ typedef struct user_t
 {
     int                 user_id;
     char                user_name[ MAX_USER_NAME_LEN ];
-    struct chat_room_t *chat_room;
+    struct chat_room_t *chat_room;                  /* Name of chatroom user is currently in           */
     struct user_t      *reply_user;                 /* reference to user who whispered to this user    */
     char                muted_users[ MAX_CONN ][ MAX_USER_NAME_LEN ];    /* users muted by this user   */
-    bool                admin;
+    bool                admin;                      /* Whether user is administrative user             */
     bool                login_failure;              /* signifies an invalid password was used to logon */
-    int                 connection;
+    int                 connection;                 /* socket file descriptor */
     pthread_t           thread;
-    bool                used;
-    bool                logout;
-    sem_t               write_mutex;
+    bool                used;                       /* Whether user struct is used/contains user data  */
+    bool                logout;                     /* Whether user has logged out                     */
+    sem_t               write_mutex;                /* write lock for client's connection */
     char                user_msg[ BUFFER_SIZE ];    /* last message sent from this user */
-    uint32_t            user_ip_addr;
+    struct in_addr      user_ip_addr;               /* IP address user is connected from */
 } user_t;
 
 
@@ -114,6 +115,17 @@ typedef struct chat_room_t
     sem_t          history_mutex;  /* For avoiding history collisions */
     int            history_count;  /* Points to next available history line */
 } chat_room_t;
+
+// Struct for storing that an IP was blocked by an administrator
+// Blocked users cannot connect to the server
+typedef struct blocked_ip_t
+{
+    struct in_addr      user_ip_addr;                       /* IP address that was blocked */
+    char                user_name[ MAX_USER_NAME_LEN ];     /* user that was blocked       */
+    char                reason[ BUFFER_SIZE ];          /* Reason user was blocked         */
+    int                 active;                         
+    int                 id;
+} blocked_ip_t;
 
 
 // prototypes
@@ -195,9 +207,12 @@ command_t   commands[] =
     { CMD_REPLY,            reply_user,                 "<message>"                     },
     { CMD_HISTORY,          get_history,                "<lines>"                       },
     { CMD_KICK,             kick_user,                  "<user>"                        },
-    { CMD_KICK_ALL,         kick_all_users_in_chat_room,""                              },
+    { CMD_KICK_ALL,         kick_all_users_in_chat_room,"<chatroomname>"                },
     { CMD_MUTE,             mute_user,                  "[user]"                        },
-    { CMD_UNMUTE,           unmute_user,                "<user>"                        },
+    { CMD_UNMUTE,           unmute_user,                "[user]"                        },
+    { CMD_BLOCK,            block_user_ip,              "<user> [reason]"               },
+    { CMD_UNBLOCK,          unblock_user_ip,            "<blockID>"                     },
+    { CMD_LISTBLOCK,        list_blocked_users,         ""                              },
 };
 
 
