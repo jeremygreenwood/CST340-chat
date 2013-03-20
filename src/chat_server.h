@@ -84,6 +84,8 @@
 #define CMD_UNBLOCK         "unblock"
 #define CMD_LISTBLOCK       "listblock"
 
+#define CMD_CHAT_ALL        "broadcast"         /* send a message to all logged-in users            */
+
 #define SLASH_VALUE         '/'
 
 
@@ -234,6 +236,7 @@ command_t   commands[] =
     { CMD_BLOCK,            block_user_ip,              "<user> [reason]"               },
     { CMD_UNBLOCK,          unblock_user_ip,            "<blockID>"                     },
     { CMD_LISTBLOCK,        list_blocked_users,         ""                              },
+    { CMD_CHAT_ALL,         chat_all,                   "<message>"                     },
 };
 
 

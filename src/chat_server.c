@@ -1463,6 +1463,49 @@ int list_blocked_users( user_t *user_submitter, int argc, char **argv )
     return SUCCESS;
 }
 
+/*****************************************************************************
+* chat_all - send a message to all connected users 
+*
+*  Parameters:
+*    user_submitter - pointer to a user_t that is the user sending the command
+*                     the check to see whether this submiter is an admin has
+*                     not yet taken place
+*    argc - number of tokens following the / command that invoked this function
+*    argv - vector of tokens from the command
+*
+* Returns FAILURE if the user is not an admin, and thus cannot chat all.
+* Returns SUCCESS otherwise
+*
+*****************************************************************************/
+int chat_all( user_t *user_submitter, int argc, char **argv )
+{
+    // We need to do the admin check
+    if ( false == user_submitter->admin )
+    {
+        write_client( user_submitter->connection, "Cannot broadcast. Only Admin users may send a broadcast message. \n" );
+        return FAILURE;
+    }
+    
+    if ( argc == 1 )
+    {
+        return DISPLAY_USAGE;
+    }
+    
+    // Grab the full message string from user and chop off first parameter
+    char   *message;
+    int     offset = strlen( argv[ 0 ] ) + 1;
+    message = strstr( user_submitter->user_msg + offset, argv[ 1 ] );
+    
+    char    timestamp[TIMESTAMP_SIZE];
+    time_t  ltime;           /* calendar time */
+    ltime = time(NULL);
+    strftime(timestamp, TIMESTAMP_SIZE, "%a %I:%M:%S %p", localtime(&ltime)); /* populate timestamp string */
+        
+    write_all_clients("[%s BROADCAST]: %s \n", timestamp, message);
+    return SUCCESS;
+}
+
+
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
 int strcicmp( char const *a, char const *b )
