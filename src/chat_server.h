@@ -44,6 +44,7 @@
 #define MAX_USERS_IN_ROOM   MAX_CONN
 #define HISTORY_SIZE        50                  /* max lines of history */
 #define BUFFER_SIZE         1024                /* max length of message */
+#define TIMESTAMP_SIZE      20                  /* length of timestamp ddd HH:MM:SS PM */
 #define DFLT_CHATROOM_NAME  "lobby"
 #define ADMIN_NAME          "Admin"             /*  Admin username  */
 #define ADMIN_PASSWORD      "notPassword"       /*  password for admin login */
@@ -105,6 +106,14 @@ typedef struct user_t
     struct in_addr      user_ip_addr;               /* IP address user is connected from */
 } user_t;
 
+// Struct for storing lines of history so we can apply mutes to history
+typedef struct history_line_t
+{
+    char                message[BUFFER_SIZE];           /* line to be logged */
+    char                timestamp[TIMESTAMP_SIZE];      /* when message was sent */
+	char                user_name[MAX_USER_NAME_LEN];   /* user who sent the message */
+} history_line_t;
+
 
 typedef struct chat_room_t
 {
@@ -112,7 +121,7 @@ typedef struct chat_room_t
     char           room_name[ MAX_ROOM_NAME_LEN ];
     int            user_count;
     struct user_t *users[ MAX_USERS_IN_ROOM ];
-    char           history[HISTORY_SIZE][MAX_LINE];
+    struct history_line_t history[HISTORY_SIZE];   /* Chat room's chat history */
     sem_t          history_mutex;  /* For avoiding history collisions */
     int            history_count;  /* Points to next available history line */
 } chat_room_t;
@@ -140,20 +149,25 @@ void init_user_thread( void );
 void destroy_user_thread( void );
 void get_username( user_t *user );
 bool admin_check( user_t *user_submitter );
-int reset_user( user_t *user_submitter );
-bool is_logged_in( char *user_name, user_t **user_pointer ); /* forward declaration */
-bool is_ignoring_user_name( user_t *user_ignoring, char *ignore_name );
-void print_mute_list( user_t *user_submitter );
+int reset_user( user_t *user_submitter );   /* Clear all values from user struct so it's ready to be re-used */
+bool is_logged_in( char *user_name, user_t **user_pointer );      /* Get reference to user logged in with given name */
+bool is_ignoring_user_name( user_t *user_ignoring, char *ignore_name ); /* Determine if given user is ignoring a name */
+void print_mute_list( user_t *user_submitter );  /* Print the mute list for given user */
 // String Case-Insensitive Comparison courtesy of
 // http://stackoverflow.com/questions/5820810/case-insensitive-string-comp-in-c
 int strcicmp( char const *a, char const *b );
 
+
+
 // chatroom helper functions
 void init_chatroom( chat_room_t *room, int id, char *name );
 void write_chatroom( user_t *user, char *msg, ... );
+void write_chatroom_history( user_t *user, char *message ); /* write message to user's current room's history */
+bool is_valid_history_line(user_t *user_submitter, int line_num); /* indicate whether user should see give line of room's history */
 bool chatroom_is_active( chat_room_t *room );
 int add_user_to_chatroom( user_t *user, chat_room_t *room );
 int remove_user_from_chatroom( user_t *user );
+
 
 // ********** COMMANDS *************
 // Note: when returning DISPLAY_USAGE status, usage statement will be printed by process_command() function

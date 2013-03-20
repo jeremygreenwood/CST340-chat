@@ -440,22 +440,36 @@ void write_chatroom( user_t *user, char *msg, ... )
 
     }
 
-    // Write the message to the next available line of chatroom's history
+    // Write the message to the next available line of chatroom's history (only if it isn't blank)
+    if ( '\0' != msg[ 0 ] )
+        write_chatroom_history( user, full_msg );
+    
+    return;
+}
+
+void write_chatroom_history( user_t *user, char *message )
+{   
+    
+    if ( NULL == user )
+        return;
+        
     sem_wait( &user->chat_room->history_mutex );
-        int j; /* for loop counter */
-        for (j = 0; j < MAX_LINE; j++ )
-        {
-            user->chat_room->history[user->chat_room->history_count][j] = '\0';
-        }
+        memset( user->chat_room->history[user->chat_room->history_count].message, 0, BUFFER_SIZE);
+        
 		time_t ltime;           /* calendar time */
 		ltime = time(NULL);
-		char timestamp[15];     /* buffer for timestamp string */
-		strftime(timestamp, 15, "%a %I:%M %p", localtime(&ltime)); /* populate timestamp string */
-		sprintf(user->chat_room->history[user->chat_room->history_count], "[%s] %s", timestamp, full_msg);
-
+        
+        // Populate the history entry (user_name, timestamp, message
+        strcpy(user->chat_room->history[user->chat_room->history_count].user_name, user->user_name);
+		strftime(user->chat_room->history[user->chat_room->history_count].timestamp, TIMESTAMP_SIZE, "%a %I:%M:%S %p", localtime(&ltime)); /* populate timestamp string */
+        strcpy(user->chat_room->history[user->chat_room->history_count].message, message);
+        
+        // Update pointer for next history entry
         user->chat_room->history_count = (user->chat_room->history_count + 1) % HISTORY_SIZE;
 
     sem_post( &user->chat_room->history_mutex );
+    
+    return;
 }
 
 bool chatroom_is_active( chat_room_t *room )
@@ -1168,7 +1182,7 @@ int get_history( user_t *user_submitter, int argc, char **argv )
 {
     int i = 0; /* loop counter */
     int line_num;
-    int total_lines;
+    int total_lines = HISTORY_SIZE;
     struct chat_room_t *user_room = user_submitter->chat_room;
 
     // Make sure the user has a valid room first
@@ -1179,51 +1193,80 @@ int get_history( user_t *user_submitter, int argc, char **argv )
     if ( argc > 2 )        
         return DISPLAY_USAGE;
     
-    char header[80];    /* For printing title */
     // If they didn't provide a # of lines, print all available history
-    if ( argc == 1 ) 
-    {
-        line_num = user_room->history_count;
-        total_lines = HISTORY_SIZE;
-    }
-    else    // Otherwise, print the # of requested lines
+    // Otherwise, print just the requested number of lines
+    if ( argc == 2 ) 
     {        
-		total_lines = atoi(argv[1]);
-		if (total_lines > HISTORY_SIZE)
-		    total_lines = HISTORY_SIZE;
-            
-        line_num = (user_room->history_count - 1 + HISTORY_SIZE) % HISTORY_SIZE;
-    }
-	// Go backwards, count up how many non-blank lines can be printed before this line
-    while ((line_num != user_room->history_count)&&( i < total_lines ))
-    {
-        if ('\0' != user_room->history[line_num][0] )
-            i++;
-        line_num = (line_num - 1 + HISTORY_SIZE) % HISTORY_SIZE;
-    }
-    line_num = (line_num + 1 + HISTORY_SIZE) % HISTORY_SIZE;
-    sprintf(header, "%s %d %s \n","--- Chatroom History ( last ", i , " lines) ---");
-
-    write_client( user_submitter->connection, header);
-    // Print out each of the non blank lines, going forwards
-    while ((line_num != user_room->history_count)&&( i > 0 ))
-    {
-        if ( '\0' != user_room->history[line_num][0] )  /* Skip-a da blanks */
+		total_lines = atoi( argv[ 1 ] );
+        if ( total_lines > HISTORY_SIZE )
+            total_lines = HISTORY_SIZE; 
+        i = 0;
+        line_num = ( user_room->history_count - 1 + HISTORY_SIZE ) % HISTORY_SIZE;
+        while( ( line_num != user_room->history_count )&&( i < total_lines ) )
         {
-            write_client( user_submitter->connection, "%s \n",user_room->history[line_num]);
+            if ( is_valid_history_line( user_submitter, line_num ) )
+                i++;
+            line_num = ( line_num - 1 + HISTORY_SIZE ) % HISTORY_SIZE;
+        }  
+        line_num = ( line_num + 1 + HISTORY_SIZE ) % HISTORY_SIZE;
+    }
+    else   
+    {
+        line_num = ( user_room->history_count + 1 + HISTORY_SIZE ) % HISTORY_SIZE;
+        i = total_lines;
+    }
+
+    write_client( user_submitter->connection, "--- Chatroom History --- \n" );
+    
+    // Print out each of the non blank lines, going forwards until we hit the end of history
+    do
+    {
+        if ( is_valid_history_line( user_submitter, line_num) )
+        {
+            write_client( user_submitter->connection, "[%s] %s \n", user_room->history[ line_num ].timestamp, user_room->history[ line_num ].message );
             i--;
         }
-        line_num = (line_num + 1) % HISTORY_SIZE;
+        line_num = ( line_num + 1 ) % HISTORY_SIZE;
     }
+    while ( ( i > 0 )&&( line_num != user_room->history_count ) );
     return SUCCESS;
 }
+
+// Determine whether the given line of the history array should be printed for the current user
+bool is_valid_history_line( user_t *user_submitter, int line_num )
+{
+    if ( line_num  > HISTORY_SIZE )
+        line_num = line_num % HISTORY_SIZE;
+    
+    // Don't show blank lines
+    if ( '\0' == user_submitter->chat_room->history[ line_num ].message[ 0 ] )
+    {
+        return false;
+    }
+    
+    // Don't show lines from users that are muted by this user
+    if ( is_ignoring_user_name( user_submitter, user_submitter->chat_room->history[ line_num ].user_name ) )
+        return false;
+    
+    user_t *history_user = NULL;
+    
+    // Don't show things from logged in users who have muted this user
+    if ( is_logged_in( user_submitter->chat_room->history[ line_num ].user_name, &history_user ) )
+    {            
+        if ( is_ignoring_user_name( history_user, user_submitter->user_name ) )
+            return false;
+    }
+    
+    return true;
+}
+
 
 
 int reset_user(user_t *user_submitter )
 {
     user_submitter->admin = false;
     user_submitter->used = false;
-    strcpy( user_submitter->user_name, "" );
+    memset( user_submitter->user_name, 0, MAX_USER_NAME_LEN);
     remove_user_from_chatroom( user_submitter );
 
     return true;
