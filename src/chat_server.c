@@ -173,7 +173,8 @@ void process_client_msg( user_t *user, char *chat_msg )
     char *arg_array[ MAX_ARGS ];
 
     // throw away empty chat messages, assuming the user inadvertently pressed enter
-    if( strcmp( chat_msg, "" ) != 0 )
+    if( false == iscntrl( chat_msg[ 0 ] ) )
+    //strcmp( chat_msg, "" ) != 0 )
     {
         num_args = get_command( chat_msg, arg_array );
 
@@ -921,6 +922,33 @@ int reply_user( user_t *user_submitter, int argc, char **argv )
     {
         return DISPLAY_USAGE;
     }
+    
+    if ( NULL == user_submitter->reply_user )
+    {
+        write_client( user_submitter->connection, "Cannot send message: no one to reply to. \n" );
+        return FAILURE;
+    }
+    
+    // If reply_user has logged off, fail.
+    if ( false == user_submitter->reply_user->used ) 
+    {
+        write_client( user_submitter->connection, "Cannot send message: user is not logged in. \n" );
+        return FAILURE;
+    }
+    
+    // If we're ignoring the reply user, don't reply 
+    if ( is_ignoring_user_name( user_submitter, user_submitter->reply_user->user_name ) )
+    {
+        write_client( user_submitter->connection, "Cannot send message: you're ignoring %s \n", user_submitter->reply_user->user_name);
+        return FAILURE;
+    }
+    
+    // If reply user is ignoring us, don't reply 
+    if ( is_ignoring_user_name( user_submitter->reply_user, user_submitter->user_name ) )
+    {
+        write_client( user_submitter->connection, "Cannot send message: %s is ignoring you. \n", user_submitter->reply_user->user_name);
+        return FAILURE;
+    }
 
     // Grab the full message string from user and chop off the first parameter
     int offset = strlen( argv[ 0 ] );
@@ -1020,7 +1048,8 @@ int mute_user( user_t *user_submitter, int argc, char **argv )
 
     // If we got this far, we can go ahead and mute the user and let everybody know.
     strcpy( user_submitter->muted_users[ --i ], mute_user_pointer->user_name );
-    write_client( mute_user_pointer->connection, "%s is ignoring you. \n", user_submitter->user_name );
+    if ( false == is_ignoring_user_name( mute_user_pointer, user_submitter->user_name ) )
+        write_client( mute_user_pointer->connection, "%s is ignoring you. \n", user_submitter->user_name );
     write_client( user_submitter->connection, "You are now ignoring %s. \n", argv[ 1 ] );
     return SUCCESS;
 }
@@ -1058,7 +1087,7 @@ int unmute_user( user_t *user_submitter, int argc, char **argv )
             if ( is_logged_in(argv[1], &other_user))
             {
                 printf( "user is logged in \n");
-                if (NULL != other_user)
+                if ((NULL != other_user) && ( false == is_ignoring_user_name( other_user, user_submitter->user_name) ) )
                     write_client(other_user->connection, "%s has stopped ignoring you. \n", user_submitter->user_name);
             }
             write_client( user_submitter->connection, "You are no longer ignoring %s. \n", argv[1]);
@@ -1264,6 +1293,14 @@ bool is_valid_history_line( user_t *user_submitter, int line_num )
 
 int reset_user(user_t *user_submitter )
 {
+    // Remove this user from everyone's reply lists
+    int i = 0;
+    for ( i = 0 ; i < MAX_CONN ; i++ )
+    {
+        if ( user_submitter == user_thread[ i ].reply_user )
+            user_thread[ i ].reply_user = NULL;
+    }
+
     user_submitter->admin = false;
     user_submitter->used = false;
     memset( user_submitter->user_name, 0, MAX_USER_NAME_LEN);
