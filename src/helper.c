@@ -104,7 +104,7 @@ ssize_t read_client( int sock_fd, char *msg_dest )
     ret_val = read_line( sock_fd, msg_dest, MAX_LINE - 1 );
 
     // remove carriage returns and newlines from end of message
-    for( i = strlen( msg_dest ) - 1; i > 0; i-- )
+    for( i = strlen( msg_dest ) - 1; i >= 0; i-- )
     {
         if( msg_dest[ i ] == '\r' || msg_dest[ i ] == '\n' )
             msg_dest[ i ] = '\0';
