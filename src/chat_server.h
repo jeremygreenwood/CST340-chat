@@ -229,15 +229,32 @@ command_t   commands[] =
     { CMD_WHISPER,          whisper_user,               "<user> <message>"              },
     { CMD_REPLY,            reply_user,                 "<message>"                     },
     { CMD_HISTORY,          get_history,                "<lines>"                       },
-    { CMD_KICK,             kick_user,                  "<user>"                        },
-    { CMD_KICK_ALL,         kick_all_users_in_chat_room,"<chatroomname>"                },
+    // { CMD_KICK,             kick_user,                  "<user>"                        },
+    // { CMD_KICK_ALL,         kick_all_users_in_chat_room,"<chatroomname>"                },
     { CMD_MUTE,             mute_user,                  "[user]"                        },
     { CMD_UNMUTE,           unmute_user,                "[user]"                        },
+    // { CMD_BLOCK,            block_user_ip,              "<user> [reason]"               },
+    // { CMD_UNBLOCK,          unblock_user_ip,            "<blockID>"                     },
+    // { CMD_LISTBLOCK,        list_blocked_users,         ""                              },
+    // { CMD_CHAT_ALL,         chat_all,                   "<message>"                     },
+};
+
+typedef struct admin_command_t
+{
+    char        command_string[ MAX_CMD_STR_LEN ];
+    int         (*command_function) ( user_t *user, int argc, char **argv );
+    char        command_parameter_usage[ MAX_CMD_USAGE_LEN ];
+} admin_command_t;
+
+
+admin_command_t   admin_commands[] =
+{
+    { CMD_KICK,             kick_user,                  "<user>"                        },
+    { CMD_KICK_ALL,         kick_all_users_in_chat_room,"<chatroomname>"                },
     { CMD_BLOCK,            block_user_ip,              "<user> [reason]"               },
     { CMD_UNBLOCK,          unblock_user_ip,            "<blockID>"                     },
     { CMD_LISTBLOCK,        list_blocked_users,         ""                              },
-    { CMD_CHAT_ALL,         chat_all,                   "<message>"                     },
+    { CMD_CHAT_ALL,         chat_all,                   "<message>"                     },    
 };
-
 
 #endif /* CHAT_SERVER_H_ */

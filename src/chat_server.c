@@ -214,14 +214,17 @@ void process_command( user_t *user, int argc, char **argv )
     printf( "argv[ %d ]: <<< %s >>>\n", j, argv[ j ] );
 #endif
 
-    int i;
+    int i, k;
+    bool found = false;
     int ret_val;
     int num_commands = sizeof( commands ) / sizeof(command_t);
+    int num_admin_commands = sizeof ( admin_commands ) / sizeof( admin_command_t );
 
     for( i = 0; i < num_commands; i++ )
     {
         if( strcicmp( argv[ 0 ], commands[ i ].command_string ) == 0 )
         {
+            found = true;
             // execute desired command
             ret_val = commands[ i ].command_function( user, argc, argv );
 
@@ -232,11 +235,28 @@ void process_command( user_t *user, int argc, char **argv )
         }
     }
     
+    if ( true == user->admin )
+    {
+        for( k = 0; k < num_admin_commands; k++ )
+        {
+            if( strcicmp( argv[ 0 ], admin_commands[ k ].command_string ) == 0 )
+            {
+                found = true;
+                // execute desired command
+                ret_val = admin_commands[ k ].command_function( user, argc, argv );
+
+                if( ret_val == DISPLAY_USAGE )
+                    write_client( user->connection, "Usage: %s%s %s \n", CMD_SIG, argv[ 0 ], admin_commands[ k ].command_parameter_usage );
+
+                break;
+            }
+        }
+    }
     // catch unknown commands
-    if( i == num_commands )
+    if( false == found )
     {
         write_client( user->connection, "Invalid command: %s \n", argv[ 0 ] );
-        write_client( user->connection, "type \"help\" for a list of commands. \n" );
+        write_client( user->connection, "type \"/help\" for a list of commands. \n" );
     }
 }
 
@@ -547,8 +567,11 @@ int add_user_to_chatroom( user_t *user, chat_room_t *room )
 
 int help( user_t *user_submitter, int argc, char **argv )
 {
-    int i;
+    int i, j;
+    bool found_command = false;
     int num_commands = sizeof( commands ) / sizeof(command_t);
+    int num_admincommands = sizeof( admin_commands ) / sizeof( admin_command_t );
+    bool is_admin = user_submitter->admin;
 
     switch( argc )
     {
@@ -560,6 +583,15 @@ int help( user_t *user_submitter, int argc, char **argv )
             write_client( user_submitter->connection, "\t%s \n", commands[ i ].command_string );
         }
 
+        if( is_admin )
+        {
+            write_client( user_submitter->connection, "admin commands: \n" );
+            for( j = 0; j < num_admincommands; j++ )
+            {
+                write_client( user_submitter->connection, "\t%s \n", admin_commands[ j ].command_string );
+            }
+        }
+
         return SUCCESS;
 
     case 2:
@@ -567,13 +599,27 @@ int help( user_t *user_submitter, int argc, char **argv )
         {
             if( strcicmp( commands[ i ].command_string, argv[ 1 ] ) == 0 )            
             {
+                found_command = true;
                 write_client( user_submitter->connection, "Usage: %s%s %s \n", CMD_SIG, commands[ i ].command_string , commands[ i ].command_parameter_usage );                
                 break;
             }
         }
 
+        if( is_admin )
+        {
+            for( j = 0; i < num_admincommands; j++ )
+            {
+                if( strcicmp( admin_commands[ j ].command_string, argv[ 1 ] ) == 0 )
+                {
+                    found_command = true;
+                    write_client( user_submitter->connection, "Usage: %s%s %s \n", CMD_SIG, admin_commands[ i ].command_string , admin_commands[ i ].command_parameter_usage );
+                    break;
+                }
+            }
+        }
+
         // catch unknown commands
-        if( i == num_commands )
+        if( found_command == false )
         {
             write_client( user_submitter->connection, "Invalid command: %s \n", argv[ 1 ] );
 
@@ -599,6 +645,13 @@ int kick_user( user_t *user_submitter, int argc, char **argv )
     int result = FAILURE;
     char *user_name = argv[ 1 ];
 
+    if ( false == user_submitter->admin )
+    {
+        write_client( user_submitter->connection, "Only Admin can block. \n");
+        return FAILURE;
+    }
+    
+    
     // verify a user name was provided and the number of args is correct
     if( user_name == NULL || argc != 2)
     {
@@ -640,6 +693,13 @@ int kick_all_users_in_chat_room( user_t *user_submitter, int argc, char **argv )
         return DISPLAY_USAGE;
     }
 
+    if ( false == user_submitter->admin )
+    {
+        write_client( user_submitter->connection, "Only Admin can block. \n");
+        return FAILURE;
+    }
+
+    
     // iterate through all chatrooms to check if chatroom with room_name exists
     for( i = 0; i < MAX_ROOMS; i++ )
     {
@@ -1394,6 +1454,12 @@ int block_user_ip( user_t *user_submitter, int argc, char **argv )
 {
     int i, open_spots;
     char *user_name = argv[ 1 ];
+    
+    if ( false == user_submitter->admin )
+    {
+        write_client( user_submitter->connection, "Only Admin can block. \n");
+        return FAILURE;
+    }
 
     // verify a user name was provided and the number of args is correct
     if( user_name == NULL || 2 > argc)
@@ -1449,6 +1515,8 @@ int block_user_ip( user_t *user_submitter, int argc, char **argv )
 
 int unblock_user_ip( user_t *user_submitter, int argc, char **argv )
 {
+    int i;
+    int result = FAILURE;
     char *id_str = argv[ 1 ];
 
     // verify a user name was provided and the number of args is correct
@@ -1457,6 +1525,14 @@ int unblock_user_ip( user_t *user_submitter, int argc, char **argv )
         return DISPLAY_USAGE;
     }
 
+    if ( false == user_submitter->admin )
+    {
+        write_client( user_submitter->connection, "Only Admin can block. \n");
+        return FAILURE;
+    }
+
+    
+    
     // Convert to int
     int target_id = atoi(id_str);
 
@@ -1468,6 +1544,14 @@ int list_blocked_users( user_t *user_submitter, int argc, char **argv )
     bool first_line = true;
     int i;
 
+    if ( false == user_submitter->admin )
+    {
+        write_client( user_submitter->connection, "Only Admin can block. \n");
+        return FAILURE;
+    }
+
+    
+    
     for( i = 0; i < MAX_BLOCKED; i++ )
     {
         if ( block_is_active( &blocks[i] ) )
@@ -1514,7 +1598,7 @@ int chat_all( user_t *user_submitter, int argc, char **argv )
     // We need to do the admin check
     if ( false == user_submitter->admin )
     {
-        write_client( user_submitter->connection, "Cannot broadcast. Only Admin users may send a broadcast message. \n" );
+        write_client( user_submitter->connection, "Cannot broadcast. Only Admin users may send a broadcast message. " );
         return FAILURE;
     }
     
