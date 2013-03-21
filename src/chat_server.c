@@ -815,13 +815,37 @@ int where_am_i( user_t *user_submitter, int argc, char **argv )
 int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
 {
     int i;
+    bool first_line = true;
+    char ignore_status[20];
+    memset(ignore_status, 0, 20);
 
     // Iterate through user_thread struct and print all users in same room
     for( i = 0; i < MAX_CONN; i++ )
     {
         if( user_submitter->chat_room == user_thread[ i ].chat_room && user_thread[ i ].used == true )
         {
-            write_client( user_submitter->connection, "\t%s \n", user_thread[ i ].user_name );        
+            if ( true == first_line )            
+            {                
+                first_line = false;                
+                write_client( user_submitter->connection, "--- All Users in Chatroom %s --- \n", user_submitter->chat_room->room_name );            
+            }
+
+            if ( is_ignoring_user_name( user_submitter, user_thread[i].user_name ) )            
+            {                
+                sprintf(ignore_status, "(ignored) ");
+            }            
+            else            
+            {                
+                if ( is_ignoring_user_name(&user_thread[i], user_submitter->user_name) )                    
+                {
+                    sprintf(ignore_status, " (ignoring you) ");
+                }
+                else                    
+                    sprintf(ignore_status,"                 ");
+    
+            }
+            
+            write_client( user_submitter->connection, "\t%s \t%s\n", user_thread[ i ].user_name, ignore_status );        
         }
     }
 
@@ -830,6 +854,9 @@ int list_chat_room_users( user_t *user_submitter, int argc, char **argv )
 
 int list_all_users( user_t *user_submitter, int argc, char **argv )
 {
+    char ignore_status[20];
+    memset(ignore_status, 0, 20);
+    
     bool first_line = true;    
     int i;
 
@@ -842,17 +869,22 @@ int list_all_users( user_t *user_submitter, int argc, char **argv )
                 first_line = false;                
                 write_client( user_submitter->connection, "--- All Online Users --- \n" );            
             }            
+            
             if ( is_ignoring_user_name( user_submitter, user_thread[i].user_name ) )            
             {                
-                write_client( user_submitter->connection, "%s\t (ignored) \n", user_thread[ i ].user_name );            
+                sprintf(ignore_status, "(ignored) ");
             }            
             else            
             {                
                 if ( is_ignoring_user_name(&user_thread[i], user_submitter->user_name) )                    
-                    write_client( user_submitter->connection, "%s\t (ignoring you) \n", user_thread[ i ].user_name );                
+                {
+                    sprintf(ignore_status, " (ignoring you) ");
+                }
                 else                    
-                    write_client( user_submitter->connection, "%s \n", user_thread[ i ].user_name );            
-            }        
+                    sprintf(ignore_status,"                 ");
+            }
+            
+            write_client( user_submitter->connection, "\t%s \t%s \t%s \n", user_thread[ i ].user_name, user_thread[ i ].chat_room->room_name , ignore_status );
         }    
     }
 
